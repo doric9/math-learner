@@ -4,8 +4,60 @@ import { writeFileSync } from 'fs';
 const BASE_URL = 'https://artofproblemsolving.com';
 const START_URL = `${BASE_URL}/wiki/index.php/AMC_8_Problems_and_Solutions`;
 
-// Extract correct answer from solution text/HTML
-function extractAnswer(solutionText, solutionHtml = '') {
+// IMPROVED: Extract answer choices from LaTeX string with multiple pattern support
+function extractChoices(latexText) {
+  if (!latexText) return {};
+
+  const choices = {};
+
+  // Try multiple patterns to handle variations
+  const patterns = [
+    // Pattern 1: Standard \textbf{(A)}\ content (backslash-space or tilde)
+    /\\textbf\{\(([A-E])\)\}[\\~\s]+([^\\]+?)(?=\\qquad|\\textbf|\s*$)/g,
+
+    // Pattern 2: Space inside braces \textbf{(A) } content
+    /\\textbf\{\(([A-E])\)\s*\}[\\~\s]*([^\\]+?)(?=\\qquad|\\textbf|\s*$)/g,
+
+    // Pattern 3: Flexible with optional backslash in braces
+    /\\textbf\{\\?\(([A-E])\)\\?\}[\\~\s]*([^\\]+?)(?=\\qquad|\\textbf|\s*$)/g
+  ];
+
+  for (const pattern of patterns) {
+    let match;
+    const tempChoices = {};
+
+    // Reset regex state
+    pattern.lastIndex = 0;
+
+    while ((match = pattern.exec(latexText)) !== null) {
+      const letter = match[1];
+      let content = match[2];
+
+      // Clean up the content
+      content = content.trim();
+      content = content.replace(/\s+/g, ' ');
+      content = content.replace(/\$+/g, '');
+      content = content.replace(/\\qquad/g, '').trim();
+
+      if (content && content.length > 0) {
+        tempChoices[letter] = content;
+      }
+    }
+
+    // If this pattern found all 5 choices, use it
+    if (Object.keys(tempChoices).length === 5) {
+      return tempChoices;
+    } else if (Object.keys(tempChoices).length > Object.keys(choices).length) {
+      // Use the pattern that found the most choices
+      Object.assign(choices, tempChoices);
+    }
+  }
+
+  return choices;
+}
+
+// IMPROVED: Extract correct answer with numeric mapping support
+function extractAnswer(solutionText, solutionHtml = '', choices = {}) {
   if (!solutionText && !solutionHtml) return '';
 
   const combined = (solutionText + ' ' + solutionHtml).toLowerCase();
@@ -22,7 +74,21 @@ function extractAnswer(solutionText, solutionHtml = '') {
     return answerMatch[1].toUpperCase();
   }
 
-  // Try 3: Look for "therefore (A)" or "so (B)"
+  // Try 3: NEW - Look for numeric answer and map to choice
+  const numAnswerMatch = combined.match(/(?:answer is|answer:|final answer is)[\s~]*[\\$]*([0-9,\.]+)/i);
+  if (numAnswerMatch && Object.keys(choices).length > 0) {
+    const numAnswer = numAnswerMatch[1].replace(/,/g, '').trim();
+
+    // Try to find which choice matches this number
+    for (const [letter, value] of Object.entries(choices)) {
+      const cleanValue = value.replace(/,/g, '').replace(/\$/g, '').trim();
+      if (cleanValue === numAnswer || cleanValue.includes(numAnswer)) {
+        return letter;
+      }
+    }
+  }
+
+  // Try 4: Look for "therefore (A)" or "so (B)"
   const thereforeMatch = combined.match(/(?:therefore|thus|so|hence)[\s,~]*\(?([a-e])\)?/i);
   if (thereforeMatch) {
     return thereforeMatch[1].toUpperCase();
@@ -215,6 +281,7 @@ async function scrapeAMC8() {
               // Find Problem section
               let problemText = '';
               let problemHtml = '';
+              let choicesLatex = '';
 
               const problemHeader = headers.find(h => h.textContent.toLowerCase().includes('problem'));
               if (problemHeader) {
@@ -238,6 +305,40 @@ async function scrapeAMC8() {
 
                 problemText = problemParts.join('\n\n');
                 problemHtml = htmlParts.join('\n');
+              }
+
+              // IMPROVED: Extract choices from ALL LaTeX images, not just one
+              const latexImages = Array.from(content.querySelectorAll('img.latex'));
+              const choicesLatexParts = [];
+
+              for (const img of latexImages) {
+                const alt = img.getAttribute('alt') || '';
+                // Check if this image contains choice labels
+                if (alt.includes('\\textbf{(A)') || alt.includes('\\textbf{(B)') ||
+                  alt.includes('\\textbf{(C)') || alt.includes('\\textbf{(D)') ||
+                  alt.includes('\\textbf{(E)')) {
+                  choicesLatexParts.push(alt);
+                }
+              }
+
+              // Combine all choice-related LaTeX into one string
+              choicesLatex = choicesLatexParts.join(' ');
+
+              // IMPROVED: Fallback to HTML lists for legacy wiki pages
+              if (!choicesLatex || choicesLatexParts.length === 0) {
+                const olLists = Array.from(content.querySelectorAll('ol'));
+                for (const ol of olLists) {
+                  const items = ol.querySelectorAll('li');
+                  if (items.length === 5) {
+                    // Likely the choices list
+                    const htmlChoices = Array.from(items).map((li, idx) => {
+                      const letter = String.fromCharCode(65 + idx); // A, B, C, D, E
+                      return `\\textbf{(${letter})} ${li.textContent.trim()} \\qquad`;
+                    }).join(' ');
+                    choicesLatex = htmlChoices;
+                    break;
+                  }
+                }
               }
 
               // Find solution section
@@ -271,29 +372,34 @@ async function scrapeAMC8() {
               return {
                 problemText,
                 problemHtml,
+                choicesLatex,
                 solutionText,
                 solutionHtml
               };
             });
 
             if (problemData) {
-              // Prioritize answer from Answer Key map, fallback to extraction
+              const choices = extractChoices(problemData.choicesLatex);
+
+              // NEW: Prioritize answer from Answer Key map, fallback to extraction
               let correctAnswer = answerKeyMap[number] || '';
               if (!correctAnswer) {
-                correctAnswer = extractAnswer(problemData.solutionText, problemData.solutionHtml);
+                correctAnswer = extractAnswer(problemData.solutionText, problemData.solutionHtml, choices);
               }
 
               examData.problems.push({
                 problemNumber: number,
                 problemText: problemData.problemText,
                 problemHtml: problemData.problemHtml,
+                choices: choices,
                 correctAnswer: correctAnswer,
                 solutionText: problemData.solutionText,
                 solutionHtml: problemData.solutionHtml
               });
 
+              const hasChoices = Object.keys(choices).length === 5;
               const hasAnswer = correctAnswer !== '';
-              console.log(`  ✓ Problem ${number}: Answer=${hasAnswer ? correctAnswer : '✗'}`);
+              console.log(`  ✓ Problem ${number}: Choices=${hasChoices ? '✓' : '✗'} Answer=${hasAnswer ? correctAnswer : '✗'}`);
             }
 
           } catch (error) {
@@ -312,18 +418,28 @@ async function scrapeAMC8() {
     // Save data
     const filename = '../amc8_data_improved.json';
     writeFileSync(filename, JSON.stringify(data, null, 2));
+
     // Print summary
     const totalProblems = data.exams.reduce((sum, exam) => sum + exam.problems.length, 0);
+    const totalWithChoices = data.exams.reduce((sum, exam) =>
+      sum + exam.problems.filter(p => Object.keys(p.choices).length === 5).length, 0);
     const totalWithAnswers = data.exams.reduce((sum, exam) =>
       sum + exam.problems.filter(p => p.correctAnswer).length, 0);
 
     console.log('\n============================================================');
-    console.log('✅ SCRAPING COMPLETE');
+    console.log('✅ IMPROVED SCRAPING COMPLETE');
     console.log('============================================================');
     console.log(`📁 Output: ${filename}`);
     console.log(`📊 Exams scraped: ${data.exams.length}`);
     console.log(`📝 Total problems: ${totalProblems}`);
-    console.log(`✓ Correct answers: ${totalWithAnswers}/${totalProblems} (${Math.round(totalWithAnswers / totalProblems * 100)}%)`);
+    console.log('\n📋 Success Rates:');
+    console.log(`   • Answer choices: ${totalWithChoices}/${totalProblems} (${Math.round(totalWithChoices / totalProblems * 100)}%)`);
+    console.log(`   • Correct answers: ${totalWithAnswers}/${totalProblems} (${Math.round(totalWithAnswers / totalProblems * 100)}%)`);
+
+    // Show improvement
+    console.log('\n📈 Improvement vs Previous:');
+    console.log(`   • Choices: ${Math.round(totalWithChoices / totalProblems * 100)}% (was 39%)`);
+    console.log(`   • Answers: ${Math.round(totalWithAnswers / totalProblems * 100)}% (was 73%)`);
     console.log('============================================================\n');
 
   } catch (error) {

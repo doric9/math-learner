@@ -117,3 +117,23 @@ img.latexcenter {
   margin-top: 2rem !important;
   margin-bottom: 2rem !important;
 }
+
+/* KaTeX math expression spacing */
+.katex {
+  padding: 0 0.15em;
+}
+
+.katex-display {
+  margin: 1em 0 !important;
+  padding: 0.5em 0;
+}
+
+/* Inline math in prose */
+.prose .katex {
+  font-size: 1em;
+}
+
+/* Block math in prose */
+.prose .katex-display {
+  margin: 1.25em 0 !important;
+}

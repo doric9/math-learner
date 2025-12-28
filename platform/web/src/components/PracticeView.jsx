@@ -47,9 +47,8 @@ const PracticeView = () => {
 
   const currentProblem = problems[currentProblemIndex];
 
-  const choices = (currentProblem && Object.keys(currentProblem.choices || {}).length > 0)
-    ? Object.entries(currentProblem.choices).sort(([a], [b]) => a.localeCompare(b))
-    : ['A', 'B', 'C', 'D', 'E'].map(k => [k, '']);
+  // Simple A-E choices - always show all 5 options
+  const answerOptions = ['A', 'B', 'C', 'D', 'E'];
 
   const handleAnswerSelect = (choice) => {
     setSelectedAnswer(choice);
@@ -124,41 +123,41 @@ const PracticeView = () => {
             className="mb-6"
           />
 
-          {/* Answer Choices */}
-          <div className="space-y-3">
-            {choices.map(([choice, text]) => {
-              const isSelected = selectedAnswer === choice;
-              const isCorrectAnswer = choice === currentProblem.correctAnswer;
-              const showCorrect = selectedAnswer && isCorrectAnswer;
-              const showIncorrect = isSelected && !isCorrectAnswer;
+          {/* Answer Choices - Simple A/B/C/D/E buttons */}
+          <div className="mt-8">
+            <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">Select your answer:</p>
+            <div className="flex gap-3 flex-wrap">
+              {answerOptions.map((letter) => {
+                const isSelected = selectedAnswer === letter;
+                const isCorrectAnswer = letter === currentProblem.correctAnswer;
+                const showCorrect = selectedAnswer && isCorrectAnswer;
+                const showIncorrect = isSelected && !isCorrectAnswer;
 
-              return (
-                <button
-                  key={choice}
-                  onClick={() => handleAnswerSelect(choice)}
-                  className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${showCorrect
-                    ? 'border-green-500 bg-green-50'
-                    : showIncorrect
-                      ? 'border-red-500 bg-red-50'
-                      : isSelected
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                >
-                  <span className="font-semibold mr-3">{choice}.</span>
-                  <span className={showCorrect || showIncorrect ? 'font-medium' : ''}>
-                    <ProblemDisplay content={text} inline size="text-base" />
-                  </span>
-                </button>
-              );
-            })}
+                return (
+                  <button
+                    key={letter}
+                    onClick={() => handleAnswerSelect(letter)}
+                    className={`w-14 h-14 rounded-xl border-2 transition-all duration-200 flex items-center justify-center text-lg font-bold ${showCorrect
+                      ? 'border-green-500 bg-green-500 text-white'
+                      : showIncorrect
+                        ? 'border-red-500 bg-red-500 text-white'
+                        : isSelected
+                          ? 'border-blue-500 bg-blue-500 text-white'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      }`}
+                  >
+                    {showCorrect ? '✓' : showIncorrect ? '✗' : letter}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* Feedback */}
           {selectedAnswer && (
             <div className={`mt-6 p-4 rounded-lg ${selectedAnswer === currentProblem?.correctAnswer ? 'bg-green-100' : 'bg-red-100'}`}>
               <p className={`font-semibold ${selectedAnswer === currentProblem?.correctAnswer ? 'text-green-800' : 'text-red-800'}`}>
-                {selectedAnswer === currentProblem?.correctAnswer ? '✓ Correct!' : '✗ Incorrect'}
+                {selectedAnswer === currentProblem?.correctAnswer ? '✓ Correct!' : `✗ Incorrect. The correct answer is ${currentProblem.correctAnswer}.`}
               </p>
             </div>
           )}
@@ -180,9 +179,6 @@ const PracticeView = () => {
                     content={currentProblem.solutionHtml || currentProblem.solutionText}
                     isHtml={!!currentProblem.solutionHtml}
                   />
-                  <p className="mt-4 font-semibold text-gray-900">
-                    Correct Answer: {currentProblem.correctAnswer}
-                  </p>
                 </div>
               )}
             </div>

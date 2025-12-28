@@ -212,31 +212,27 @@ const TestView = () => {
                 className="mb-6"
               />
 
-              {/* Answer Choices */}
-              <div className="space-y-3">
-                {(() => {
-                  const choices = Object.keys(currentProblem.choices || {}).length > 0
-                    ? Object.entries(currentProblem.choices).sort(([a], [b]) => a.localeCompare(b))
-                    : ['A', 'B', 'C', 'D', 'E'].map(k => [k, '']);
-
-                  return choices.map(([choice, text]) => {
-                    const isSelected = answers[currentProblemIndex] === choice;
+              {/* Answer Choices - Simple A/B/C/D/E buttons */}
+              <div className="mt-8">
+                <p className="text-sm font-bold text-gray-500 uppercase tracking-wide mb-4">Select your answer:</p>
+                <div className="flex gap-3 flex-wrap">
+                  {['A', 'B', 'C', 'D', 'E'].map((letter) => {
+                    const isSelected = answers[currentProblemIndex] === letter;
 
                     return (
                       <button
-                        key={choice}
-                        onClick={() => handleAnswerSelect(choice)}
-                        className={`w-full text-left p-4 rounded-lg border-2 transition-all duration-200 ${isSelected
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                        key={letter}
+                        onClick={() => handleAnswerSelect(letter)}
+                        className={`w-14 h-14 rounded-xl border-2 transition-all duration-200 flex items-center justify-center text-lg font-bold ${isSelected
+                          ? 'border-blue-500 bg-blue-500 text-white'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                           }`}
                       >
-                        <span className="font-semibold mr-3">{choice}.</span>
-                        <ProblemDisplay content={text} inline size="text-base" />
+                        {letter}
                       </button>
                     );
-                  });
-                })()}
+                  })}
+                </div>
               </div>
             </div>
 

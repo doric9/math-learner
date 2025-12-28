@@ -7,24 +7,23 @@ let model = null;
 
 if (API_KEY) {
   genAI = new GoogleGenerativeAI(API_KEY);
-  model = genAI.getGenerativeModel({ model: "gemini-3.0-flash" });
+  model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
 }
 
-// Conversational tutor - responds to student questions
-export const chatWithTutor = async (problem, conversationHistory, userMessage) => {
-  if (!model) throw new Error("Gemini API not initialized");
-
-  // Build conversation context
+// Build the system prompt for the tutor
+const buildSystemPrompt = (problem, conversationHistory, userMessage) => {
   const conversationContext = conversationHistory
     .map(msg => `${msg.role === 'student' ? 'Student' : 'Tutor'}: ${msg.content}`)
     .join('\n\n');
 
-  const systemPrompt = `You are an expert math tutor helping a student solve an AMC 8 math problem through Socratic dialogue.
+  return `You are an expert math tutor helping a student solve an AMC 8 math problem through Socratic dialogue.
 
 Problem:
 ${problem.problemText || problem.problemHtml}
 
 ${problem.choices ? `Answer choices:\n${Object.entries(problem.choices).map(([key, val]) => `${key}. ${val}`).join('\n')}` : ''}
+
+Correct Answer: ${problem.correctAnswer}
 
 TUTORING GUIDELINES:
 - Guide the student with questions and hints, don't give direct answers
@@ -37,6 +36,7 @@ TUTORING GUIDELINES:
 - Only reveal the full solution if explicitly asked "show me the solution" or after multiple struggles
 - Be encouraging, patient, and supportive
 - Keep responses concise and focused
+- Use LaTeX notation for math expressions (wrap in $ for inline, $$ for block)
 
 Previous conversation:
 ${conversationContext}
@@ -44,9 +44,30 @@ ${conversationContext}
 Student's new message: ${userMessage}
 
 Respond as the tutor:`;
+};
 
+// Conversational tutor - responds to student questions
+export const chatWithTutor = async (problem, conversationHistory, userMessage) => {
+  if (!model) throw new Error("Gemini API not initialized");
+
+  const systemPrompt = buildSystemPrompt(problem, conversationHistory, userMessage);
   const result = await model.generateContent(systemPrompt);
   return result.response.text();
+};
+
+// Streaming version for real-time display
+export const chatWithTutorStream = async function* (problem, conversationHistory, userMessage) {
+  if (!model) throw new Error("Gemini API not initialized");
+
+  const systemPrompt = buildSystemPrompt(problem, conversationHistory, userMessage);
+  const result = await model.generateContentStream(systemPrompt);
+
+  for await (const chunk of result.stream) {
+    const chunkText = chunk.text();
+    if (chunkText) {
+      yield chunkText;
+    }
+  }
 };
 
 // Generate a hint for the current problem state
