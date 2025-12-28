@@ -2,7 +2,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import ProblemDisplay from './ProblemDisplay';
 
 const ResultsView = () => {
@@ -63,9 +63,10 @@ const ResultsView = () => {
       saveAttempted.current = true;
 
       try {
+        // Save test results
         await addDoc(collection(db, 'users', currentUser.uid, 'results'), {
           examYear: year,
-          mode: 'test', // Assuming test mode for now, could be passed in state
+          mode: 'test',
           score: correctCount,
           totalQuestions: totalProblems,
           correctCount,
@@ -73,13 +74,46 @@ const ResultsView = () => {
           unansweredCount,
           timeUsed,
           date: serverTimestamp(),
-          answers: answers, // Saving raw answers map
+          answers: answers,
           correctAnswers: problems.reduce((acc, p, idx) => {
             acc[idx] = p.correctAnswer;
             return acc;
           }, {})
         });
-        console.log("Results saved successfully");
+
+        // Update streak
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const userDocRef = doc(db, 'users', currentUser.uid);
+        const userDoc = await getDoc(userDocRef);
+        const userData = userDoc.exists() ? userDoc.data() : {};
+        const streakData = userData.streak || { current: 0, lastActivityDate: null };
+
+        let newStreak = 1;
+        if (streakData.lastActivityDate === today) {
+          // Already practiced today, keep current streak
+          newStreak = streakData.current;
+        } else if (streakData.lastActivityDate) {
+          const lastDate = new Date(streakData.lastActivityDate);
+          const todayDate = new Date(today);
+          const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            // Consecutive day - increment streak
+            newStreak = streakData.current + 1;
+          } else {
+            // Missed a day - reset to 1
+            newStreak = 1;
+          }
+        }
+
+        await setDoc(userDocRef, {
+          streak: {
+            current: newStreak,
+            lastActivityDate: today
+          }
+        }, { merge: true });
+
+        console.log("Results and streak saved successfully");
       } catch (error) {
         console.error("Error saving results:", error);
       }
