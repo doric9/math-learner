@@ -243,7 +243,7 @@ const GuidedPracticeView = () => {
                             <div className="flex gap-3 flex-wrap">
                                 {['A', 'B', 'C', 'D', 'E'].map((letter) => {
                                     const isSelected = selectedAnswer === letter;
-                                    const isCorrectAnswer = answerSubmitted && letter === currentProblem.correctAnswer;
+                                    const showCorrect = answerSubmitted && isCorrect && letter === currentProblem.correctAnswer;
                                     const isWrongSelection = answerSubmitted && isSelected && !isCorrect;
 
                                     return (
@@ -251,7 +251,7 @@ const GuidedPracticeView = () => {
                                             key={letter}
                                             onClick={() => handleAnswerSelect(letter)}
                                             disabled={answerSubmitted}
-                                            className={`w-14 h-14 rounded-2xl border-2 transition-all flex items-center justify-center text-lg font-black ${isCorrectAnswer
+                                            className={`w-14 h-14 rounded-2xl border-2 transition-all flex items-center justify-center text-lg font-black ${showCorrect
                                                 ? 'border-green-500 bg-green-500 text-white'
                                                 : isWrongSelection
                                                     ? 'border-red-500 bg-red-500 text-white'
@@ -260,7 +260,7 @@ const GuidedPracticeView = () => {
                                                         : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
                                                 } ${answerSubmitted ? 'cursor-default' : 'cursor-pointer'}`}
                                         >
-                                            {isCorrectAnswer ? <CheckCircle size={20} /> : isWrongSelection ? <XCircle size={20} /> : letter}
+                                            {showCorrect ? <CheckCircle size={20} /> : isWrongSelection ? <XCircle size={20} /> : letter}
                                         </button>
                                     );
                                 })}

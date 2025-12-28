@@ -129,24 +129,23 @@ const PracticeView = () => {
             <div className="flex gap-3 flex-wrap">
               {answerOptions.map((letter) => {
                 const isSelected = selectedAnswer === letter;
-                const isCorrectAnswer = letter === currentProblem.correctAnswer;
-                const showCorrect = selectedAnswer && isCorrectAnswer;
-                const showIncorrect = isSelected && !isCorrectAnswer;
+                const isCorrectSelection = isSelected && letter === currentProblem.correctAnswer;
+                const isWrongSelection = isSelected && letter !== currentProblem.correctAnswer;
 
                 return (
                   <button
                     key={letter}
                     onClick={() => handleAnswerSelect(letter)}
-                    className={`w-14 h-14 rounded-xl border-2 transition-all duration-200 flex items-center justify-center text-lg font-bold ${showCorrect
+                    className={`w-14 h-14 rounded-xl border-2 transition-all duration-200 flex items-center justify-center text-lg font-bold ${isCorrectSelection
                       ? 'border-green-500 bg-green-500 text-white'
-                      : showIncorrect
+                      : isWrongSelection
                         ? 'border-red-500 bg-red-500 text-white'
                         : isSelected
                           ? 'border-blue-500 bg-blue-500 text-white'
                           : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                       }`}
                   >
-                    {showCorrect ? '✓' : showIncorrect ? '✗' : letter}
+                    {isCorrectSelection ? '✓' : isWrongSelection ? '✗' : letter}
                   </button>
                 );
               })}
@@ -157,7 +156,7 @@ const PracticeView = () => {
           {selectedAnswer && (
             <div className={`mt-6 p-4 rounded-lg ${selectedAnswer === currentProblem?.correctAnswer ? 'bg-green-100' : 'bg-red-100'}`}>
               <p className={`font-semibold ${selectedAnswer === currentProblem?.correctAnswer ? 'text-green-800' : 'text-red-800'}`}>
-                {selectedAnswer === currentProblem?.correctAnswer ? '✓ Correct!' : `✗ Incorrect. The correct answer is ${currentProblem.correctAnswer}.`}
+                {selectedAnswer === currentProblem?.correctAnswer ? '✓ Correct!' : '✗ Incorrect. Try again or view the solution.'}
               </p>
             </div>
           )}
