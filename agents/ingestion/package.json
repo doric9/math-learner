@@ -1,0 +1,13 @@
+{
+  "name": "amc8-ingestion-agent",
+  "version": "1.0.0",
+  "description": "Ingestion agent for AMC 8 problems to Firestore",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "ingest": "node index.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

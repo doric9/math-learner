@@ -1,0 +1,4 @@
+node_modules/
+amc8_data.json
+serviceAccountKey.json
+*.log

@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+/* Fix for AoPS inline latex images */
+img.latex {
+  display: inline-block !important;
+  vertical-align: middle !important;
+  margin: 0 2px !important;
+  max-height: 1.5em;
+  /* Scale to text size roughly */
+}
+
+/* Fix for AoPS centered images (graphs, diagrams) */
+img.latexcenter {
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  margin-top: 2rem !important;
+  /* Add padding above */
+  margin-bottom: 2rem !important;
+  /* Add padding below */
+}
+
+/* Ensure prose doesn't force block on these */
+.prose img.latex {
+  display: inline-block !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+.prose img.latexcenter {
+  margin-top: 2rem !important;
+  margin-bottom: 2rem !important;
+}

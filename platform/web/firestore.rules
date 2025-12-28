@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow read access to all users for the competitions collection
+    match /competitions/{document=**} {
+      allow read: if true;
+      allow write: if false; // Only admin SDK (ingestion script) can write
+    }
+    
+    // Allow read/write for generated problems
+    match /generated_problems/{document=**} {
+      allow read, write: if true; // For MVP, allowing open access. Secure this later.
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
