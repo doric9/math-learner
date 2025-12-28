@@ -416,7 +416,7 @@ async function scrapeAMC8() {
     }
 
     // Save data
-    const filename = './amc8_data_improved.json';
+    const filename = '../amc8_data_improved.json';
     writeFileSync(filename, JSON.stringify(data, null, 2));
 
     // Print summary

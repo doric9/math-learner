@@ -15,7 +15,7 @@ const db = getFirestore();
 async function uploadData() {
   try {
     console.log('Reading data file...');
-    const rawData = readFileSync('./amc8_data_improved.json', 'utf8');
+    const rawData = readFileSync('../amc8_data_improved.json', 'utf8');
     const data = JSON.parse(rawData);
 
     console.log(`Found ${data.exams.length} exams to upload.`);
