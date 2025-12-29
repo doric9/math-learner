@@ -29,5 +29,12 @@ Thumbs.db
 serviceAccountKey.json
 *-key.json
 
-# Scraped data (optional - include if you want to version control the data)
+# Build cache
+.vite/
+
+# Backup files
+*.bak
+
+# Scraped data
+amc8_data_improved.json
 # scraper/amc8_data.json
