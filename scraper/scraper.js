@@ -223,7 +223,7 @@ async function scrapeAMC8() {
                 let current = problemHeader.nextElementSibling;
 
                 while (current && !current.matches('h2')) {
-                  if (current.tagName === 'P' || current.tagName === 'DIV' || current.tagName === 'CENTER' || current.tagName === 'FIGURE') {
+                  if (current.tagName === 'P' || current.tagName === 'DIV' || current.tagName === 'CENTER' || current.tagName === 'FIGURE' || current.tagName === 'UL' || current.tagName === 'OL') {
                     // Get better text with LaTeX
                     problemParts.push(getBetterText(current));
 
