@@ -3,9 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { chatWithTutorStream } from '../services/tutor';
-import { Send, BookOpen, ArrowRight, ArrowLeft, Sparkles, CheckCircle, XCircle, PartyPopper } from 'lucide-react';
+import { Send, BookOpen, ArrowRight, ArrowLeft, Sparkles, CheckCircle, XCircle, PartyPopper, Star } from 'lucide-react';
 import ProblemDisplay from './ProblemDisplay';
 import confetti from 'canvas-confetti';
+import { addXP, updateStreak, XP_VALUES } from '../services/userService';
+import { useAuth } from '../contexts/AuthContext';
 
 const GuidedPracticeView = () => {
     const { year } = useParams();
@@ -13,6 +15,8 @@ const GuidedPracticeView = () => {
     const [problems, setProblems] = useState([]);
     const [currentProblemIndex, setCurrentProblemIndex] = useState(0);
     const [loading, setLoading] = useState(true);
+    const [sessionPoints, setSessionPoints] = useState(0);
+    const { currentUser } = useAuth();
 
     // Conversational Chat State
     const [conversation, setConversation] = useState([]);
@@ -50,7 +54,10 @@ const GuidedPracticeView = () => {
             }
         };
         fetchProblems();
-    }, [year]);
+        if (currentUser) {
+            updateStreak(currentUser.uid);
+        }
+    }, [year, currentUser]);
 
     // Add welcome message when problem loads
     useEffect(() => {
@@ -86,6 +93,10 @@ const GuidedPracticeView = () => {
 
         if (correct) {
             triggerConfetti();
+            if (currentUser) {
+                addXP(currentUser.uid, XP_VALUES.PRACTICE_CORRECT, `guided_correct_${year}_${currentProblem.problemNumber}`);
+                setSessionPoints(prev => prev + XP_VALUES.PRACTICE_CORRECT);
+            }
             setConversation(prev => [...prev, {
                 role: 'tutor',
                 content: "🎉 **Excellent work!** That's absolutely correct!\n\nYou chose **" + selectedAnswer + "**, which is the right answer. Would you like me to walk through the solution to reinforce your understanding, or are you ready to move to the next problem?"
@@ -112,6 +123,11 @@ const GuidedPracticeView = () => {
         setConversation(newConversation);
         setIsTyping(true);
         setStreamingText('');
+
+        if (currentUser) {
+            addXP(currentUser.uid, XP_VALUES.GUIDED_STEP, `guided_interaction_${year}_${currentProblem.problemNumber}`);
+            setSessionPoints(prev => prev + XP_VALUES.GUIDED_STEP);
+        }
 
         try {
             // Get AI response with streaming
@@ -216,9 +232,16 @@ const GuidedPracticeView = () => {
                         </button>
                         <div className="flex items-center gap-4">
                             <h1 className="text-xl font-black text-slate-900">{year} AMC 8</h1>
-                            <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">
-                                Problem {currentProblem.problemNumber} / {problems.length}
-                            </span>
+                            <div className="flex items-center gap-4">
+                                {sessionPoints > 0 && (
+                                    <span className="flex items-center gap-1 text-amber-600 font-black text-sm">
+                                        <Star size={14} fill="currentColor" /> +{sessionPoints} XP
+                                    </span>
+                                )}
+                                <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-bold">
+                                    Problem {currentProblem.problemNumber} / {problems.length}
+                                </span>
+                            </div>
                         </div>
                     </div>
 

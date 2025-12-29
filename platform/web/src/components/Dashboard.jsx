@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
-import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
+import { Flame, Star, Zap, Award } from 'lucide-react';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
@@ -13,6 +14,7 @@ export default function Dashboard() {
     const [results, setResults] = useState([]);
     const [loading, setLoading] = useState(true);
     const [topicStats, setTopicStats] = useState([]);
+    const [userStats, setUserStats] = useState({ xp: 0, level: 1, streak: 0 });
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -104,6 +106,33 @@ export default function Dashboard() {
         ? (results.reduce((acc, curr) => acc + (curr.score || 0), 0) / totalExams).toFixed(1)
         : 0;
 
+    // Fetch User Profile Stats
+    useEffect(() => {
+        async function fetchUserStats() {
+            if (!currentUser) return;
+            const userRef = doc(db, 'users', currentUser.uid);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                const data = userSnap.data();
+                setUserStats({
+                    xp: data.xp || 0,
+                    level: data.level || 1,
+                    streak: data.streak?.current || 0,
+                    badges: data.badges || []
+                });
+            }
+        }
+        fetchUserStats();
+    }, [currentUser]);
+
+    // Level calculation for progress bar
+    // Current Level: L
+    // XP for L to L+1 is roughly based on calculateLevel: level = sqrt(xp/25) + 1
+    // (L-1)^2 * 25 = XP min for level L
+    const xpMin = Math.pow(userStats.level - 1, 2) * 25;
+    const xpMax = Math.pow(userStats.level, 2) * 25;
+    const levelProgress = xpMax > xpMin ? Math.min(100, ((userStats.xp - xpMin) / (xpMax - xpMin)) * 100) : 0;
+
     // Prepare Data for Line Chart (Reverse to show oldest to newest)
     const scoreData = [...results].reverse().map(r => ({
         name: r.examYear,
@@ -126,20 +155,54 @@ export default function Dashboard() {
                 </div>
 
                 {/* Stats Overview */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-indigo-500">
-                        <dt className="text-sm font-medium text-gray-500 truncate">Total Exams Taken</dt>
-                        <dd className="mt-1 text-3xl font-semibold text-gray-900">{totalExams}</dd>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500 truncate">Experience Points</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{userStats.xp} XP</dd>
+                            </div>
+                            <Star className="text-amber-400 w-8 h-8" />
+                        </div>
+                        <div className="mt-3">
+                            <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-1">
+                                <span>Level {userStats.level}</span>
+                                <span>{userStats.xp} / {xpMax} XP</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                                <div
+                                    className="h-full bg-amber-400 transition-all duration-1000"
+                                    style={{ width: `${levelProgress}%` }}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-orange-500">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500 truncate">Day Streak</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{userStats.streak} Days</dd>
+                            </div>
+                            <Flame className="text-orange-500 w-8 h-8" />
+                        </div>
                     </div>
                     <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-green-500">
-                        <dt className="text-sm font-medium text-gray-500 truncate">Average Score</dt>
-                        <dd className="mt-1 text-3xl font-semibold text-gray-900">{avgScore} <span className="text-sm text-gray-400">/ 25</span></dd>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500 truncate">Average Score</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{avgScore}</dd>
+                            </div>
+                            <Zap className="text-green-500 w-8 h-8" />
+                        </div>
                     </div>
                     <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-purple-500">
-                        <dt className="text-sm font-medium text-gray-500 truncate">Mastery Level</dt>
-                        <dd className="mt-1 text-3xl font-semibold text-gray-900">
-                            {avgScore >= 20 ? 'Expert' : avgScore >= 15 ? 'Advanced' : 'Apprentice'}
-                        </dd>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <dt className="text-sm font-medium text-gray-500 truncate">Badges Earned</dt>
+                                <dd className="mt-1 text-3xl font-semibold text-gray-900">{userStats.badges?.length || 0}</dd>
+                            </div>
+                            <Award className="text-purple-500 w-8 h-8" />
+                        </div>
                     </div>
                 </div>
 

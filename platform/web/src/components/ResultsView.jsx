@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
 import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import ProblemDisplay from './ProblemDisplay';
+import { addXP, updateStreak, XP_VALUES } from '../services/userService';
 
 const ResultsView = () => {
   const location = useLocation();
@@ -81,39 +82,14 @@ const ResultsView = () => {
           }, {})
         });
 
-        // Update streak
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-        const userDocRef = doc(db, 'users', currentUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        const userData = userDoc.exists() ? userDoc.data() : {};
-        const streakData = userData.streak || { current: 0, lastActivityDate: null };
+        // Update streak and XP via service
+        await updateStreak(currentUser.uid);
 
-        let newStreak = 1;
-        if (streakData.lastActivityDate === today) {
-          // Already practiced today, keep current streak
-          newStreak = streakData.current;
-        } else if (streakData.lastActivityDate) {
-          const lastDate = new Date(streakData.lastActivityDate);
-          const todayDate = new Date(today);
-          const diffDays = Math.floor((todayDate - lastDate) / (1000 * 60 * 60 * 24));
+        // Award XP for each correct answer
+        const totalXP = (correctCount * XP_VALUES.MOCK_TEST_CORRECT) + XP_VALUES.MOCK_TEST_COMPLETION;
+        await addXP(currentUser.uid, totalXP, `mock_test_${year}_completion`);
 
-          if (diffDays === 1) {
-            // Consecutive day - increment streak
-            newStreak = streakData.current + 1;
-          } else {
-            // Missed a day - reset to 1
-            newStreak = 1;
-          }
-        }
-
-        await setDoc(userDocRef, {
-          streak: {
-            current: newStreak,
-            lastActivityDate: today
-          }
-        }, { merge: true });
-
-        console.log("Results and streak saved successfully");
+        console.log("Results, streak and XP saved successfully");
       } catch (error) {
         console.error("Error saving results:", error);
       }

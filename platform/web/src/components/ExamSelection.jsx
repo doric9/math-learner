@@ -4,6 +4,7 @@ import { db } from '../firebase/config';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Sparkles, BookOpen, Trophy, Zap, Clock, ChevronRight, BarChart3, Binary, Rocket, Search, Filter, Flame, Star, Award, X } from 'lucide-react';
+import { updateStreak, checkAchievements } from '../services/userService';
 
 const ExamSelection = () => {
   const [exams, setExams] = useState([]);
@@ -12,7 +13,7 @@ const ExamSelection = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTag, setActiveTag] = useState('All');
   const [results, setResults] = useState({});
-  const [stats, setStats] = useState({ totalPoints: 0, examsCompleted: 0, badges: 0, streak: 0 });
+  const [stats, setStats] = useState({ xp: 0, level: 1, examsCompleted: 0, badges: 0, streak: 0 });
   const [sandboxHint, setSandboxHint] = useState(false);
   const navigate = useNavigate();
   const { currentUser, logout } = useAuth();
@@ -50,6 +51,10 @@ const ExamSelection = () => {
     const fetchUserProgress = async () => {
       if (!currentUser) return;
       try {
+        // Fetch streak and award daily XP if needed
+        await updateStreak(currentUser.uid);
+        await checkAchievements(currentUser.uid);
+
         const q = query(collection(db, 'users', currentUser.uid, 'results'));
         const snapshot = await getDocs(q);
         const progressMap = {};
@@ -62,18 +67,18 @@ const ExamSelection = () => {
         });
         setResults(progressMap);
 
-        // Calculate Global Stats
-        const totalPoints = Object.values(progressMap).reduce((acc, curr) => acc + curr.score, 0);
-        const examsCompleted = Object.keys(progressMap).length;
-        const badges = Math.floor(totalPoints / 50) + (examsCompleted >= 3 ? 1 : 0);
-
-        // Fetch streak from user document
+        // Fetch user stats from user document
         const userDocRef = doc(db, 'users', currentUser.uid);
         const userDoc = await getDoc(userDocRef);
         const userData = userDoc.exists() ? userDoc.data() : {};
-        const streak = userData.streak?.current || 0;
 
-        setStats({ totalPoints, examsCompleted, badges, streak });
+        const xp = userData.xp || 0;
+        const level = userData.level || 1;
+        const streak = userData.streak?.current || 0;
+        const examsCompleted = snapshot.size;
+        const badges = userData.badges?.length || 0;
+
+        setStats({ xp, level, examsCompleted, badges, streak });
       } catch (error) {
         console.error('Error fetching progress:', error);
       }
@@ -235,10 +240,10 @@ const ExamSelection = () => {
           {currentUser && (
             <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
               {[
-                { label: 'Total Points', value: stats.totalPoints, icon: Star, color: 'text-amber-500', bg: 'bg-amber-50' },
+                { label: 'Total XP', value: stats.xp, icon: Star, color: 'text-amber-500', bg: 'bg-amber-50' },
                 { label: 'Exams Taken', value: stats.examsCompleted, icon: Trophy, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                { label: 'Level', value: stats.level, icon: Zap, color: 'text-blue-500', bg: 'bg-blue-50' },
                 { label: 'Streak', value: `${stats.streak} Day${stats.streak !== 1 ? 's' : ''}`, icon: Flame, color: 'text-orange-500', bg: 'bg-orange-50' },
-                { label: 'Badges', value: stats.badges, icon: Award, color: 'text-purple-600', bg: 'bg-purple-50' },
               ].map((item, i) => (
                 <div key={i} className="flex flex-col items-center p-4 rounded-3xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all">
                   <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center mb-2`}>

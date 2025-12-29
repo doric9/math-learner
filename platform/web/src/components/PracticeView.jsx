@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import ProblemDisplay from './ProblemDisplay';
+import { addXP, updateStreak, XP_VALUES } from '../services/userService';
+import { useAuth } from '../contexts/AuthContext';
 
 const PracticeView = () => {
   const { year } = useParams();
@@ -13,6 +15,8 @@ const PracticeView = () => {
   const [showSolution, setShowSolution] = useState(false);
   const [answers, setAnswers] = useState({});
   const [loading, setLoading] = useState(true);
+  const [sessionPoints, setSessionPoints] = useState(0);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const fetchProblems = async () => {
@@ -43,7 +47,10 @@ const PracticeView = () => {
     };
 
     fetchProblems();
-  }, [year]);
+    if (currentUser) {
+      updateStreak(currentUser.uid);
+    }
+  }, [year, currentUser]);
 
   const currentProblem = problems[currentProblemIndex];
 
@@ -56,6 +63,11 @@ const PracticeView = () => {
       ...answers,
       [currentProblemIndex]: choice
     });
+
+    if (choice === currentProblem.correctAnswer && !answers[currentProblemIndex] && currentUser) {
+      addXP(currentUser.uid, XP_VALUES.PRACTICE_CORRECT, `practice_correct_${year}_${currentProblem.problemNumber}`);
+      setSessionPoints(prev => prev + XP_VALUES.PRACTICE_CORRECT);
+    }
   };
 
   const handleNext = () => {
@@ -106,8 +118,9 @@ const PracticeView = () => {
           <h1 className="text-2xl font-bold text-gray-900">
             {year} AMC 8 - Practice Mode
           </h1>
-          <div className="text-gray-600">
-            Problem {currentProblemIndex + 1} of {problems.length}
+          <div className="text-gray-600 flex items-center gap-4">
+            {sessionPoints > 0 && <span className="text-amber-600 font-bold">+{sessionPoints} XP Earned</span>}
+            <span>Problem {currentProblemIndex + 1} of {problems.length}</span>
           </div>
         </div>
 
