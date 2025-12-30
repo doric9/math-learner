@@ -197,6 +197,10 @@ async function scrapeAMC8() {
               const content = document.querySelector('.mw-parser-output');
               if (!content) return null;
 
+              // Remove redundant elements like navigation tables and copyright containers
+              const redundant = content.querySelectorAll('table.wikitable, table.toccolours, div.print, .printfooter, #catlinks, #siteSub, #contentSub, #jump-to-nav, .mw-jump-link');
+              redundant.forEach(el => el.remove());
+
               const getBetterText = (el) => {
                 if (!el) return '';
                 const clone = el.cloneNode(true);
@@ -249,17 +253,27 @@ async function scrapeAMC8() {
                 return extractText(clone).trim().replace(/\n{3,}/g, '\n\n');
               };
 
-              const headers = Array.from(content.querySelectorAll('h2'));
+
+              const headers = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6'));
 
               const sections = [];
               headers.forEach((h) => {
                 const title = h.innerText.trim().replace('[edit]', '');
+
+                // Ignore metadata/Boilerplate sections
+                if (['See Also', 'Annotated Solutions', 'External Links', 'References', 'Email Sent', 'Credits'].includes(title)) return;
+
+
                 const contentParts = [];
                 const htmlParts = [];
                 let current = h.nextElementSibling;
-                while (current && current.tagName.toUpperCase() !== 'H2') {
+
+                // Stop at the next header of any level
+                const isHeader = (el) => /^H[1-6]$/.test(el.tagName.toUpperCase());
+
+                while (current && !isHeader(current)) {
                   const tag = current.tagName.toUpperCase();
-                  if (['P', 'DIV', 'CENTER', 'FIGURE', 'UL', 'OL', 'TABLE', 'DL'].includes(tag)) {
+                  if (['P', 'DIV', 'CENTER', 'FIGURE', 'UL', 'OL', 'TABLE', 'DL', 'PRE', 'BLOCKQUOTE'].includes(tag)) {
                     const text = getBetterText(current);
                     if (text) contentParts.push(text);
                     let html = current.outerHTML.replace(/src="\/\//g, 'src="https://').replace(/src="\//g, 'src="https://artofproblemsolving.com/');
@@ -267,25 +281,45 @@ async function scrapeAMC8() {
                   }
                   current = current.nextElementSibling;
                 }
-                sections.push({
-                  title,
-                  text: contentParts.join('\n\n'),
-                  html: htmlParts.join('\n')
-                });
+
+                if (contentParts.length > 0 || htmlParts.length > 0) {
+                  sections.push({
+                    title,
+                    text: contentParts.join('\n\n'),
+                    html: htmlParts.join('\n')
+                  });
+                }
               });
 
               // Refine sections
               const problemSection = sections.find(s => s.title.toLowerCase().includes('problem'));
-              const solutions = sections.filter(s => s.title.toLowerCase().includes('solution') && !s.title.toLowerCase().includes('video'));
-              const videoSections = sections.filter(s => s.title.toLowerCase().includes('video'));
 
-              // Extract video URLs more robustly from video sections
+              const solutions = sections.filter(s => {
+                const lowerTitle = s.title.toLowerCase();
+                return (lowerTitle.includes('solution') ||
+                  lowerTitle.includes('approach') ||
+                  lowerTitle.includes('method')) &&
+                  !lowerTitle.includes('video') &&
+                  s !== problemSection;
+              });
+
+              const videoSections = sections.filter(s => {
+                const lowerTitle = s.title.toLowerCase();
+                return lowerTitle.includes('video') || lowerTitle.includes('youtube') || lowerTitle.includes('youtu.be');
+              });
+
+
+              // Extract video URLs
               const videoSolutions = [];
               videoSections.forEach(vs => {
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = vs.html;
                 const links = Array.from(tempDiv.querySelectorAll('a')).map(a => a.href).filter(href => href.includes('youtube.com') || href.includes('youtu.be'));
+
+                // If the section title contains "Video Solution" but no number, or standard numbers
                 if (links.length > 0) {
+                  // If title is just "Video Solution(Quick...)", it might not have the intended number
+                  // but we want to capture it as a distinct entry.
                   videoSolutions.push({
                     title: vs.title,
                     url: links[0]
@@ -294,11 +328,12 @@ async function scrapeAMC8() {
               });
 
               return {
-                problemText: problemSection ? problemSection.text : '',
-                problemHtml: problemSection ? problemSection.html : '',
+                problemText: problemSection ? problemSection.text : (sections[0] ? sections[0].text : ''),
+                problemHtml: problemSection ? problemSection.html : (sections[0] ? sections[0].html : ''),
                 solutions: solutions.map(s => ({ title: s.title, text: s.text, html: s.html })),
                 videoSolutions
               };
+
             });
 
             if (problemData) {
