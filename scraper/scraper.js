@@ -122,6 +122,7 @@ async function scrapeAMC8() {
     console.log(`Found ${yearLinks.length} exam years\n`);
 
     // Scrape all years from 1999 to 2025
+    // Scrape all years from 1999 to 2025
     const yearsToScrape = yearLinks.filter(l => l.year >= 1999 && l.year <= 2025);
 
     for (const { year, url } of yearsToScrape) {
@@ -199,15 +200,53 @@ async function scrapeAMC8() {
               const getBetterText = (el) => {
                 if (!el) return '';
                 const clone = el.cloneNode(true);
-                // Replace latex images with their alt text (LaTeX)
-                const latexImgs = clone.querySelectorAll('img.latex');
-                latexImgs.forEach(img => {
-                  const alt = img.getAttribute('alt') || '';
-                  const span = document.createElement('span');
-                  span.textContent = alt;
-                  img.parentNode.replaceChild(span, img);
-                });
-                return clone.textContent.trim();
+
+                // Recursive function to handle text extraction with formatting
+                const extractText = (node) => {
+                  if (node.nodeType === Node.TEXT_NODE) {
+                    return node.textContent;
+                  }
+
+                  if (node.nodeType !== Node.ELEMENT_NODE) {
+                    return '';
+                  }
+
+                  const tagName = node.tagName.toUpperCase();
+
+                  // Handle LaTeX images
+                  if (tagName === 'IMG' && node.classList.contains('latex')) {
+                    return node.getAttribute('alt') || '';
+                  }
+
+                  // Handle Lists
+                  if (tagName === 'UL' || tagName === 'OL') {
+                    const items = Array.from(node.children)
+                      .filter(child => child.tagName.toUpperCase() === 'LI')
+                      .map((li, index) => {
+                        const bullet = tagName === 'UL' ? '• ' : `${index + 1}. `;
+                        return bullet + extractText(li).trim();
+                      });
+                    return '\n' + items.join('\n') + '\n';
+                  }
+
+                  if (tagName === 'LI') {
+                    return Array.from(node.childNodes).map(extractText).join('');
+                  }
+
+                  // Default: handle children
+                  let text = Array.from(node.childNodes).map(extractText).join('');
+
+                  // Blocks should have newlines
+                  if (['P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'BR'].includes(tagName)) {
+                    text = text.trim();
+                    if (tagName === 'BR') return '\n';
+                    return '\n' + text + '\n';
+                  }
+
+                  return text;
+                };
+
+                return extractText(clone).trim().replace(/\n{3,}/g, '\n\n');
               };
 
               const headers = Array.from(content.querySelectorAll('h2'));
@@ -222,10 +261,12 @@ async function scrapeAMC8() {
                 const htmlParts = [];
                 let current = problemHeader.nextElementSibling;
 
-                while (current && !current.matches('h2')) {
-                  if (current.tagName === 'P' || current.tagName === 'DIV' || current.tagName === 'CENTER' || current.tagName === 'FIGURE' || current.tagName === 'UL' || current.tagName === 'OL') {
-                    // Get better text with LaTeX
-                    problemParts.push(getBetterText(current));
+                while (current && current.tagName.toUpperCase() !== 'H2') {
+                  const tagName = current.tagName.toUpperCase();
+                  if (['P', 'DIV', 'CENTER', 'FIGURE', 'UL', 'OL', 'TABLE'].includes(tagName)) {
+                    // Get better text with LaTeX and formatting
+                    const text = getBetterText(current);
+                    if (text) problemParts.push(text);
 
                     // Get HTML with fixed image URLs
                     let html = current.outerHTML;
@@ -251,9 +292,11 @@ async function scrapeAMC8() {
                 let current = solutionHeader.nextElementSibling;
                 let count = 0;
 
-                while (current && !current.matches('h2') && count < 15) {
-                  if (current.tagName === 'P' || current.tagName === 'DIV' || current.tagName === 'ol' || current.tagName === 'ul') {
-                    solutionParts.push(getBetterText(current));
+                while (current && current.tagName.toUpperCase() !== 'H2' && count < 20) {
+                  const tagName = current.tagName.toUpperCase();
+                  if (['P', 'DIV', 'OL', 'UL', 'TABLE'].includes(tagName)) {
+                    const text = getBetterText(current);
+                    if (text) solutionParts.push(text);
 
                     let html = current.outerHTML;
                     html = html.replace(/src="\/\//g, 'src="https://');
