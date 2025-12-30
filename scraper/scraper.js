@@ -251,92 +251,74 @@ async function scrapeAMC8() {
 
               const headers = Array.from(content.querySelectorAll('h2'));
 
-              // Find Problem section
-              let problemText = '';
-              let problemHtml = '';
-
-              const problemHeader = headers.find(h => h.textContent.toLowerCase().includes('problem'));
-              if (problemHeader) {
-                const problemParts = [];
+              const sections = [];
+              headers.forEach((h) => {
+                const title = h.innerText.trim().replace('[edit]', '');
+                const contentParts = [];
                 const htmlParts = [];
-                let current = problemHeader.nextElementSibling;
-
+                let current = h.nextElementSibling;
                 while (current && current.tagName.toUpperCase() !== 'H2') {
-                  const tagName = current.tagName.toUpperCase();
-                  if (['P', 'DIV', 'CENTER', 'FIGURE', 'UL', 'OL', 'TABLE'].includes(tagName)) {
-                    // Get better text with LaTeX and formatting
+                  const tag = current.tagName.toUpperCase();
+                  if (['P', 'DIV', 'CENTER', 'FIGURE', 'UL', 'OL', 'TABLE', 'DL'].includes(tag)) {
                     const text = getBetterText(current);
-                    if (text) problemParts.push(text);
-
-                    // Get HTML with fixed image URLs
-                    let html = current.outerHTML;
-                    html = html.replace(/src="\/\//g, 'src="https://');
-                    html = html.replace(/src="\//g, 'src="https://artofproblemsolving.com/');
+                    if (text) contentParts.push(text);
+                    let html = current.outerHTML.replace(/src="\/\//g, 'src="https://').replace(/src="\//g, 'src="https://artofproblemsolving.com/');
                     htmlParts.push(html);
                   }
                   current = current.nextElementSibling;
                 }
+                sections.push({
+                  title,
+                  text: contentParts.join('\n\n'),
+                  html: htmlParts.join('\n')
+                });
+              });
 
-                problemText = problemParts.join('\n\n');
-                problemHtml = htmlParts.join('\n');
-              }
+              // Refine sections
+              const problemSection = sections.find(s => s.title.toLowerCase().includes('problem'));
+              const solutions = sections.filter(s => s.title.toLowerCase().includes('solution') && !s.title.toLowerCase().includes('video'));
+              const videoSections = sections.filter(s => s.title.toLowerCase().includes('video'));
 
-              // Find solution section
-              let solutionText = '';
-              let solutionHtml = '';
-
-              const solutionHeader = headers.find(h => h.textContent.toLowerCase().includes('solution'));
-              if (solutionHeader) {
-                const solutionParts = [];
-                const solutionHtmlParts = [];
-                let current = solutionHeader.nextElementSibling;
-                let count = 0;
-
-                while (current && current.tagName.toUpperCase() !== 'H2' && count < 20) {
-                  const tagName = current.tagName.toUpperCase();
-                  if (['P', 'DIV', 'OL', 'UL', 'TABLE'].includes(tagName)) {
-                    const text = getBetterText(current);
-                    if (text) solutionParts.push(text);
-
-                    let html = current.outerHTML;
-                    html = html.replace(/src="\/\//g, 'src="https://');
-                    html = html.replace(/src="\//g, 'src="https://artofproblemsolving.com/');
-                    solutionHtmlParts.push(html);
-                  }
-                  current = current.nextElementSibling;
-                  count++;
+              // Extract video URLs more robustly from video sections
+              const videoSolutions = [];
+              videoSections.forEach(vs => {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = vs.html;
+                const links = Array.from(tempDiv.querySelectorAll('a')).map(a => a.href).filter(href => href.includes('youtube.com') || href.includes('youtu.be'));
+                if (links.length > 0) {
+                  videoSolutions.push({
+                    title: vs.title,
+                    url: links[0]
+                  });
                 }
-
-                solutionText = solutionParts.join('\n\n');
-                solutionHtml = solutionHtmlParts.join('\n');
-              }
+              });
 
               return {
-                problemText,
-                problemHtml,
-                solutionText,
-                solutionHtml
+                problemText: problemSection ? problemSection.text : '',
+                problemHtml: problemSection ? problemSection.html : '',
+                solutions: solutions.map(s => ({ title: s.title, text: s.text, html: s.html })),
+                videoSolutions
               };
             });
 
             if (problemData) {
-              // Prioritize answer from Answer Key map, fallback to extraction
-              let correctAnswer = answerKeyMap[number] || '';
-              if (!correctAnswer) {
-                correctAnswer = extractAnswer(problemData.solutionText, problemData.solutionHtml);
-              }
+              // Backward compatibility
+              const firstSolution = problemData.solutions[0] || { text: '', html: '' };
+              const correctAnswer = answerKeyMap[number] || extractAnswer(firstSolution.text, firstSolution.html);
 
               examData.problems.push({
                 problemNumber: number,
                 problemText: problemData.problemText,
                 problemHtml: problemData.problemHtml,
                 correctAnswer: correctAnswer,
-                solutionText: problemData.solutionText,
-                solutionHtml: problemData.solutionHtml
+                solutionText: firstSolution.text,
+                solutionHtml: firstSolution.html,
+                solutions: problemData.solutions,
+                videoSolutions: problemData.videoSolutions
               });
 
               const hasAnswer = correctAnswer !== '';
-              console.log(`  ✓ Problem ${number}: Answer=${hasAnswer ? correctAnswer : '✗'}`);
+              console.log(`  ✓ Problem ${number}: Answer=${hasAnswer ? correctAnswer : '✗'} (${problemData.solutions.length} solutions, ${problemData.videoSolutions.length} videos)`);
             }
 
           } catch (error) {
