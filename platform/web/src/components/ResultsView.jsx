@@ -4,7 +4,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
 import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import ProblemDisplay from './ProblemDisplay';
+import SolutionSection from './SolutionSection';
 import { addXP, updateStreak, XP_VALUES } from '../services/userService';
+
 
 const ResultsView = () => {
   const location = useLocation();
@@ -205,13 +207,10 @@ const ResultsView = () => {
                 </div>
 
                 {/* Solution */}
-                <div className="mt-4 p-4 bg-white rounded-lg border border-gray-300">
-                  <h4 className="font-bold text-gray-900 mb-2">Solution:</h4>
-                  <ProblemDisplay
-                    content={result.problem.solutionHtml || result.problem.solutionText}
-                    isHtml={!!result.problem.solutionHtml}
-                  />
+                <div className="mt-4 p-6 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
+                  <SolutionSection problem={result.problem} />
                 </div>
+
               </div>
             ))}
           </div>

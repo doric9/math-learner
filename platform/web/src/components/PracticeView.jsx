@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import ProblemDisplay from './ProblemDisplay';
+import SolutionSection from './SolutionSection';
 import { addXP, updateStreak, XP_VALUES } from '../services/userService';
+
 import { useAuth } from '../contexts/AuthContext';
 
 const PracticeView = () => {
@@ -185,14 +187,11 @@ const PracticeView = () => {
               </button>
 
               {showSolution && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                  <h3 className="font-bold text-gray-900 mb-2">Solution:</h3>
-                  <ProblemDisplay
-                    content={currentProblem.solutionHtml || currentProblem.solutionText}
-                    isHtml={!!currentProblem.solutionHtml}
-                  />
+                <div className="mt-4 p-6 bg-gray-50 rounded-2xl border border-gray-100 shadow-inner">
+                  <SolutionSection problem={currentProblem} />
                 </div>
               )}
+
             </div>
           )}
 
