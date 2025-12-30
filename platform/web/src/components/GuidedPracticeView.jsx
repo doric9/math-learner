@@ -28,6 +28,8 @@ const GuidedPracticeView = () => {
     const [selectedAnswer, setSelectedAnswer] = useState(null);
     const [answerSubmitted, setAnswerSubmitted] = useState(false);
     const [isCorrect, setIsCorrect] = useState(false);
+    const [attemptedAnswers, setAttemptedAnswers] = useState([]);
+
 
     const chatEndRef = useRef(null);
     const inputRef = useRef(null);
@@ -81,17 +83,19 @@ const GuidedPracticeView = () => {
 
     const handleAnswerSelect = (choice) => {
         if (answerSubmitted) return;
+        if (attemptedAnswers.includes(choice)) return; // Don't re-select something we already tried
         setSelectedAnswer(choice);
     };
+
 
     const handleAnswerSubmit = () => {
         if (!selectedAnswer || answerSubmitted) return;
 
         const correct = selectedAnswer === currentProblem.correctAnswer;
         setIsCorrect(correct);
-        setAnswerSubmitted(true);
 
         if (correct) {
+            setAnswerSubmitted(true);
             triggerConfetti();
             if (currentUser) {
                 addXP(currentUser.uid, XP_VALUES.PRACTICE_CORRECT, `guided_correct_${year}_${currentProblem.problemNumber}`);
@@ -102,12 +106,15 @@ const GuidedPracticeView = () => {
                 content: "🎉 **Excellent work!** That's absolutely correct!\n\nYou chose **" + selectedAnswer + "**, which is the right answer. Would you like me to walk through the solution to reinforce your understanding, or are you ready to move to the next problem?"
             }]);
         } else {
+            setAttemptedAnswers(prev => [...prev, selectedAnswer]);
+            setSelectedAnswer(null); // Clear selection for retry
             setConversation(prev => [...prev, {
                 role: 'tutor',
-                content: "Hmm, that's not quite right. You chose **" + selectedAnswer + "**, but let's think about this differently.\n\nDon't worry – making mistakes is part of learning! Would you like a hint to help you find the correct approach?"
+                content: "Hmm, that's not quite right. You chose **" + selectedAnswer + "**, but let's think about this differently.\n\nDon't worry – making mistakes is part of learning! I've marked that choice for you. Would you like to **try another answer**, or should I give you a **hint** to help you find the correct path?"
             }]);
         }
     };
+
 
     const handleSendMessage = async () => {
         if (!userInput.trim() || isTyping) return;
@@ -172,8 +179,10 @@ const GuidedPracticeView = () => {
                 role: 'tutor',
                 content: "Great! Let's move on to the next problem. 📝\n\nTake a moment to read it carefully. When you're ready, select an answer or ask me for help!"
             }]);
+            setAttemptedAnswers([]);
         }
     };
+
 
     const handlePrevProblem = () => {
         if (currentProblemIndex > 0) {
@@ -185,8 +194,10 @@ const GuidedPracticeView = () => {
                 role: 'tutor',
                 content: "Let's go back to the previous problem. What would you like to work on?"
             }]);
+            setAttemptedAnswers([]);
         }
     };
+
 
     const quickActions = [
         { text: "Give me a hint", icon: "💡" },
@@ -267,25 +278,26 @@ const GuidedPracticeView = () => {
                                 {['A', 'B', 'C', 'D', 'E'].map((letter) => {
                                     const isSelected = selectedAnswer === letter;
                                     const showCorrect = answerSubmitted && isCorrect && letter === currentProblem.correctAnswer;
-                                    const isWrongSelection = answerSubmitted && isSelected && !isCorrect;
+                                    const isAttempted = attemptedAnswers.includes(letter);
 
                                     return (
                                         <button
                                             key={letter}
                                             onClick={() => handleAnswerSelect(letter)}
-                                            disabled={answerSubmitted}
+                                            disabled={answerSubmitted || isAttempted}
                                             className={`w-14 h-14 rounded-2xl border-2 transition-all flex items-center justify-center text-lg font-black ${showCorrect
                                                 ? 'border-green-500 bg-green-500 text-white'
-                                                : isWrongSelection
-                                                    ? 'border-red-500 bg-red-500 text-white'
+                                                : isAttempted
+                                                    ? 'border-red-200 bg-red-50 text-red-400 cursor-not-allowed'
                                                     : isSelected
                                                         ? 'border-indigo-600 bg-indigo-600 text-white'
                                                         : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
-                                                } ${answerSubmitted ? 'cursor-default' : 'cursor-pointer'}`}
+                                                } ${answerSubmitted || isAttempted ? 'cursor-default' : 'cursor-pointer'}`}
                                         >
-                                            {showCorrect ? <CheckCircle size={20} /> : isWrongSelection ? <XCircle size={20} /> : letter}
+                                            {showCorrect ? <CheckCircle size={20} /> : isAttempted ? <XCircle size={20} className="opacity-50" /> : letter}
                                         </button>
                                     );
+
                                 })}
                             </div>
                         </div>
