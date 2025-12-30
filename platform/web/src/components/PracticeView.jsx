@@ -4,7 +4,7 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import ProblemDisplay from './ProblemDisplay';
 import SolutionSection from './SolutionSection';
-import { addXP, updateStreak, XP_VALUES } from '../services/userService';
+import { addXP, updateStreak, checkAchievements, XP_VALUES } from '../services/userService';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -68,6 +68,7 @@ const PracticeView = () => {
 
     if (choice === currentProblem.correctAnswer && !answers[currentProblemIndex] && currentUser) {
       addXP(currentUser.uid, XP_VALUES.PRACTICE_CORRECT, `practice_correct_${year}_${currentProblem.problemNumber}`);
+      checkAchievements(currentUser.uid);
       setSessionPoints(prev => prev + XP_VALUES.PRACTICE_CORRECT);
     }
   };

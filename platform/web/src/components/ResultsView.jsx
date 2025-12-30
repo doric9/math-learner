@@ -5,7 +5,7 @@ import { db } from '../firebase/config';
 import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import ProblemDisplay from './ProblemDisplay';
 import SolutionSection from './SolutionSection';
-import { addXP, updateStreak, XP_VALUES } from '../services/userService';
+import { addXP, updateStreak, checkAchievements, XP_VALUES } from '../services/userService';
 
 
 const ResultsView = () => {
@@ -81,6 +81,10 @@ const ResultsView = () => {
           correctAnswers: problems.reduce((acc, p, idx) => {
             acc[idx] = p.correctAnswer;
             return acc;
+          }, {}),
+          problemTopics: problems.reduce((acc, p, idx) => {
+            acc[idx] = p.topic || 'General';
+            return acc;
           }, {})
         });
 
@@ -90,6 +94,7 @@ const ResultsView = () => {
         // Award XP for each correct answer
         const totalXP = (correctCount * XP_VALUES.MOCK_TEST_CORRECT) + XP_VALUES.MOCK_TEST_COMPLETION;
         await addXP(currentUser.uid, totalXP, `mock_test_${year}_completion`);
+        await checkAchievements(currentUser.uid);
 
         console.log("Results, streak and XP saved successfully");
       } catch (error) {

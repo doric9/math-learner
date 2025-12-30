@@ -6,7 +6,7 @@ import { chatWithTutorStream } from '../services/tutor';
 import { Send, BookOpen, ArrowRight, ArrowLeft, Sparkles, CheckCircle, XCircle, PartyPopper, Star } from 'lucide-react';
 import ProblemDisplay from './ProblemDisplay';
 import confetti from 'canvas-confetti';
-import { addXP, updateStreak, XP_VALUES } from '../services/userService';
+import { addXP, updateStreak, checkAchievements, XP_VALUES } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
 
 const GuidedPracticeView = () => {
@@ -99,6 +99,7 @@ const GuidedPracticeView = () => {
             triggerConfetti();
             if (currentUser) {
                 addXP(currentUser.uid, XP_VALUES.PRACTICE_CORRECT, `guided_correct_${year}_${currentProblem.problemNumber}`);
+                checkAchievements(currentUser.uid);
                 setSessionPoints(prev => prev + XP_VALUES.PRACTICE_CORRECT);
             }
             setConversation(prev => [...prev, {

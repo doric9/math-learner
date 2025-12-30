@@ -3,7 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Flame, Star, Zap, Award } from 'lucide-react';
+import { Flame, Star, Zap, Award, Trophy, AlertTriangle, ArrowRight } from 'lucide-react';
+import { BADGE_DEFINITIONS } from '../utils/badgeDefinitions';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
@@ -34,7 +35,24 @@ export default function Dashboard() {
                 }));
                 setResults(fetchedResults);
 
-                // Process Real Topic Stats
+                const CATEGORIES = ["Arithmetic", "Algebra", "Geometry", "Number Theory", "Counting"];
+
+                // 1. Identify unique years to fetch current topic mappings
+                const uniqueYears = [...new Set(fetchedResults.map(r => r.examYear))];
+                const topicMappings = {};
+
+                // 2. Fetch topic mappings for each year (to ensure we use the backfilled AI topics)
+                for (const year of uniqueYears) {
+                    const problemsRef = collection(db, 'competitions', 'amc8', 'exams', year.toString(), 'problems');
+                    const problemsSnap = await getDocs(problemsRef);
+                    topicMappings[year] = {};
+                    problemsSnap.forEach(pDoc => {
+                        const pData = pDoc.data();
+                        topicMappings[year][pData.problemNumber - 1] = pData.topic || 'General';
+                    });
+                }
+
+                // 3. Process Topic Stats using the LIVE mappings
                 const stats = {
                     'Arithmetic': { total: 0, correct: 0 },
                     'Algebra': { total: 0, correct: 0 },
@@ -45,32 +63,29 @@ export default function Dashboard() {
 
                 fetchedResults.forEach(result => {
                     const ans = result.answers || {};
-                    const correctAns = result.correctAnswers || {};
+                    const year = result.examYear;
+                    const yearMapping = topicMappings[year] || {};
 
-                    // Only process results that have the answer mapping
-                    if (Object.keys(correctAns).length > 0) {
-                        Object.keys(correctAns).forEach(idxStr => {
+                    // If we have an answer mapping, use the indices
+                    if (Object.keys(ans).length > 0) {
+                        Object.keys(ans).forEach(idxStr => {
                             const idx = parseInt(idxStr);
-                            const pNum = idx + 1;
+                            const topicStr = yearMapping[idx] || 'General';
 
-                            let topic = 'Arithmetic';
-                            if (pNum >= 23) topic = 'Counting';
-                            else if (pNum >= 19) topic = 'Number Theory';
-                            else if (pNum >= 13) topic = 'Geometry';
-                            else if (pNum >= 6) topic = 'Algebra';
+                            const problemTopics = topicStr.split(',').map(s => s.trim()).filter(s => CATEGORIES.includes(s));
+                            const primaryTopics = problemTopics.length > 0 ? problemTopics : ['Arithmetic'];
 
-                            stats[topic].total++;
-                            if (ans[idx] === correctAns[idx]) {
-                                stats[topic].correct++;
-                            }
-                        });
-                    } else if (result.score !== undefined) {
-                        // Fallback for older results: distributing score proportionally as a placeholder
-                        // This prevents empty charts for existing data while they haven't taken new tests
-                        const ratio = result.score / 25;
-                        Object.keys(stats).forEach(topic => {
-                            stats[topic].total += 5;
-                            stats[topic].correct += 5 * ratio;
+                            primaryTopics.forEach(topic => {
+                                if (stats[topic]) {
+                                    stats[topic].total++;
+                                    // Use the correct answers from the result snapshot if available, 
+                                    // or fallback to checking the problem directly (though we don't have that here easily)
+                                    const correctAns = result.correctAnswers || {};
+                                    if (ans[idx] === correctAns[idx]) {
+                                        stats[topic].correct++;
+                                    }
+                                }
+                            });
                         });
                     }
                 });
@@ -138,6 +153,11 @@ export default function Dashboard() {
         name: r.examYear,
         score: r.score
     }));
+    // Identify Weakest Topics
+    const weakestTopics = [...topicStats]
+        .filter(t => t.A < 80) // Consider topics with less than 80% accuracy
+        .sort((a, b) => a.A - b.A)
+        .slice(0, 3);
 
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -245,6 +265,91 @@ export default function Dashboard() {
                             </ResponsiveContainer>
                         </div>
                     </div>
+
+                    {/* Knowledge Gaps / Recommendations */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                            <AlertTriangle className="text-amber-500 w-5 h-5" />
+                            Knowledge Gaps
+                        </h3>
+                        {weakestTopics.length > 0 ? (
+                            <div className="space-y-4">
+                                {weakestTopics.map(topic => (
+                                    <div key={topic.subject} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div>
+                                            <h4 className="font-bold text-slate-900">{topic.subject}</h4>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <div className="h-1.5 w-24 bg-slate-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-amber-500"
+                                                        style={{ width: `${topic.A}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs font-bold text-slate-500">{topic.A}% Accuracy</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => navigate('/')} // In future link to topic drill
+                                            className="flex items-center gap-1 text-xs font-black text-indigo-600 uppercase tracking-widest hover:gap-2 transition-all"
+                                        >
+                                            Drill Topic <ArrowRight size={14} />
+                                        </button>
+                                    </div>
+                                ))}
+                                <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider text-center pt-2">
+                                    Recommendations based on your last 20 exams
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-48 text-center">
+                                <Zap className="text-green-500 w-10 h-10 mb-2" />
+                                <p className="font-bold text-slate-900">Master Level Reached</p>
+                                <p className="text-sm text-slate-500">You're crushing it across all topics!</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Achievements Section */}
+                <div className="bg-white shadow rounded-lg p-6 mb-8">
+                    <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                        <Award className="text-purple-500 w-6 h-6" />
+                        My Achievements
+                    </h3>
+                    {userStats.badges?.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {userStats.badges.map(badgeId => {
+                                const badge = BADGE_DEFINITIONS[badgeId];
+                                if (!badge) return null;
+
+                                // Map icon string to component
+                                const IconComponent = {
+                                    'Flame': Flame,
+                                    'Star': Star,
+                                    'Trophy': Trophy,
+                                    'Zap': Zap
+                                }[badge.icon] || Award;
+
+                                return (
+                                    <div key={badgeId} className={`flex items-start p-4 rounded-xl border-2 ${badge.borderColor} ${badge.bgColor} transition-all hover:scale-[1.02]`}>
+                                        <div className={`p-2 rounded-lg bg-white shadow-sm mr-4 ${badge.color}`}>
+                                            <IconComponent className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-900 leading-tight">{badge.name}</h4>
+                                            <p className="text-xs text-gray-600 mt-1">{badge.description}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                            <Award className="mx-auto h-12 w-12 text-gray-300" />
+                            <h3 className="mt-2 text-sm font-medium text-gray-900">No badges yet</h3>
+                            <p className="mt-1 text-sm text-gray-500">Complete exams and maintain streaks to earn badges!</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* Recent Activity */}

@@ -1,5 +1,5 @@
 import { db } from '../firebase/config';
-import { doc, getDoc, setDoc, updateDoc, increment, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, increment, collection, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 
 /**
  * XP Constants
@@ -31,7 +31,7 @@ export const addXP = async (uid, amount, reason) => {
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
     const userData = userSnap.exists() ? userSnap.data() : { xp: 0, level: 1 };
-    
+
     const currentXP = userData.xp || 0;
     const newXP = currentXP + amount;
     const newLevel = calculateLevel(newXP);
@@ -69,9 +69,9 @@ export const updateStreak = async (uid) => {
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
     const userData = userSnap.exists() ? userSnap.data() : {};
-    
+
     const streakData = userData.streak || { current: 0, lastActivityDate: null };
-    
+
     if (streakData.lastActivityDate === today) {
         return streakData;
     }
@@ -107,7 +107,7 @@ export const updateStreak = async (uid) => {
  */
 export const checkAchievements = async (uid) => {
     if (!uid) return;
-    
+
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
     if (!userSnap.exists()) return [];
@@ -116,16 +116,32 @@ export const checkAchievements = async (uid) => {
     const existingBadges = userData.badges || [];
     const newBadges = [];
 
-    // Streak Badges
+    // 1. Streak Badges
     const streak = userData.streak?.current || 0;
     if (streak >= 3 && !existingBadges.includes('streak_3')) newBadges.push('streak_3');
     if (streak >= 7 && !existingBadges.includes('streak_7')) newBadges.push('streak_7');
     if (streak >= 30 && !existingBadges.includes('streak_30')) newBadges.push('streak_30');
 
-    // XP Badges
+    // 2. XP Badges
     const xp = userData.xp || 0;
     if (xp >= 100 && !existingBadges.includes('xp_100')) newBadges.push('xp_100');
     if (xp >= 1000 && !existingBadges.includes('xp_1000')) newBadges.push('xp_1000');
+
+    // 3. Exam Completion Badges
+    try {
+        const resultsRef = collection(db, 'users', uid, 'results');
+        const resultsSnap = await getDocs(resultsRef);
+        const examCount = resultsSnap.size;
+
+        if (examCount >= 1 && !existingBadges.includes('exam_1')) newBadges.push('exam_1');
+        if (examCount >= 5 && !existingBadges.includes('exam_5')) newBadges.push('exam_5');
+
+        // 4. Perfect Score Badge
+        const hasPerfectScore = resultsSnap.docs.some(doc => doc.data().score >= 25);
+        if (hasPerfectScore && !existingBadges.includes('perfect_score')) newBadges.push('perfect_score');
+    } catch (e) {
+        console.error("Error checking exam badges:", e);
+    }
 
     if (newBadges.length > 0) {
         await updateDoc(userRef, {
