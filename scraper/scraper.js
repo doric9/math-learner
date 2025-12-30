@@ -254,42 +254,43 @@ async function scrapeAMC8() {
               };
 
 
+
               const headers = Array.from(content.querySelectorAll('h1, h2, h3, h4, h5, h6'));
 
               const sections = [];
-              headers.forEach((h) => {
+              headers.forEach((h, i) => {
                 const title = h.innerText.trim().replace('[edit]', '');
 
                 // Ignore metadata/Boilerplate sections
-                if (['See Also', 'Annotated Solutions', 'External Links', 'References', 'Email Sent', 'Credits'].includes(title)) return;
+                if (['See Also', 'Annotated Solutions', 'External Links', 'References', 'Email Sent', 'Credits', 'Contents'].includes(title)) return;
 
+                // Use Range API for robust partitioning (handles nested headers)
+                const nextH = headers[i + 1];
+                const range = document.createRange();
+                range.setStartAfter(h);
 
-                const contentParts = [];
-                const htmlParts = [];
-                let current = h.nextElementSibling;
-
-                // Stop at the next header of any level
-                const isHeader = (el) => /^H[1-6]$/.test(el.tagName.toUpperCase());
-
-                while (current && !isHeader(current)) {
-                  const tag = current.tagName.toUpperCase();
-                  if (['P', 'DIV', 'CENTER', 'FIGURE', 'UL', 'OL', 'TABLE', 'DL', 'PRE', 'BLOCKQUOTE'].includes(tag)) {
-                    const text = getBetterText(current);
-                    if (text) contentParts.push(text);
-                    let html = current.outerHTML.replace(/src="\/\//g, 'src="https://').replace(/src="\//g, 'src="https://artofproblemsolving.com/');
-                    htmlParts.push(html);
-                  }
-                  current = current.nextElementSibling;
+                if (nextH) {
+                  range.setEndBefore(nextH);
+                } else {
+                  range.setEndAfter(content.lastChild);
                 }
 
-                if (contentParts.length > 0 || htmlParts.length > 0) {
+                const fragment = range.cloneContents();
+                const tempDiv = document.createElement('div');
+                tempDiv.appendChild(fragment);
+
+                const text = getBetterText(tempDiv);
+                let html = tempDiv.innerHTML.replace(/src="\/\//g, 'src="https://').replace(/src="\//g, 'src="https://artofproblemsolving.com/');
+
+                if (text || html) {
                   sections.push({
                     title,
-                    text: contentParts.join('\n\n'),
-                    html: htmlParts.join('\n')
+                    text: text.trim(),
+                    html
                   });
                 }
               });
+
 
               // Refine sections
               const problemSection = sections.find(s => s.title.toLowerCase().includes('problem'));
