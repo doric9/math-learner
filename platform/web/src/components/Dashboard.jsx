@@ -289,7 +289,7 @@ export default function Dashboard() {
                                             </div>
                                         </div>
                                         <button
-                                            onClick={() => navigate('/')} // In future link to topic drill
+                                            onClick={() => navigate(`/practice/topic/${topic.subject}`)}
                                             className="flex items-center gap-1 text-xs font-black text-indigo-600 uppercase tracking-widest hover:gap-2 transition-all"
                                         >
                                             Drill Topic <ArrowRight size={14} />

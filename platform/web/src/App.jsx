@@ -6,6 +6,7 @@ import ResultsView from './components/ResultsView';
 import GuidedPracticeView from './components/GuidedPracticeView';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import TopicDrillView from './components/TopicDrillView';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/practice/:year" element={<PracticeView />} />
+          <Route path="/practice/topic/:topicName" element={<TopicDrillView />} />
           <Route path="/test/:year" element={<TestView />} />
           <Route path="/results/:year" element={<ResultsView />} />
           <Route path="/guided/:year" element={<GuidedPracticeView />} />

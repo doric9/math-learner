@@ -3,7 +3,7 @@ import { collection, getDocs, query, orderBy, where, limit, doc, getDoc } from '
 import { db } from '../firebase/config';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Sparkles, BookOpen, Trophy, Zap, Clock, ChevronRight, BarChart3, Binary, Rocket, Search, Filter, Flame, Star, Award, X } from 'lucide-react';
+import { Sparkles, BookOpen, Trophy, Zap, Clock, ChevronRight, BarChart3, Binary, Rocket, Search, Filter, Flame, Star, Award, X, Calculator, Variable, Triangle, Hash, Layers } from 'lucide-react';
 import { updateStreak, checkAchievements } from '../services/userService';
 
 const ExamSelection = () => {
@@ -288,6 +288,41 @@ const ExamSelection = () => {
                 Identify your weaknesses in Number Theory, Geometry, and Counting. Track your progress year-over-year.
               </p>
             </div>
+          </div>
+        </section>
+
+        {/* Knowledge Hub */}
+        <section className="py-24 reveal" ref={el => revealRefs.current[4] = el}>
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+            <div>
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight">The Knowledge Hub</h2>
+              <p className="text-slate-500 font-bold mt-2 uppercase tracking-widest text-sm">Targeted Practice by Domain</p>
+            </div>
+            <p className="text-slate-400 font-medium max-w-sm text-sm">
+              Drill down into specific math categories. We'll aggregate problems from 26 years of exams to help you master each field.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-6">
+            {[
+              { name: 'Arithmetic', icon: Calculator, color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', hover: 'hover:border-blue-600' },
+              { name: 'Algebra', icon: Variable, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100', hover: 'hover:border-violet-600' },
+              { name: 'Geometry', icon: Triangle, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', hover: 'hover:border-emerald-600' },
+              { name: 'Number Theory', icon: Hash, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', hover: 'hover:border-amber-600' },
+              { name: 'Counting', icon: Layers, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100', hover: 'hover:border-rose-600' }
+            ].map((topic) => (
+              <button
+                key={topic.name}
+                onClick={() => navigate(`/practice/topic/${topic.name}`)}
+                className={`group flex flex-col items-center p-8 rounded-[40px] border-2 ${topic.border} ${topic.hover} bg-white transition-all duration-500 hover:shadow-xl hover:-translate-y-2`}
+              >
+                <div className={`w-16 h-16 ${topic.bg} ${topic.color} rounded-2xl flex items-center justify-center mb-6 shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`}>
+                  <topic.icon className="w-8 h-8" />
+                </div>
+                <h3 className="text-lg font-black text-slate-900 mb-2 truncate w-full text-center">{topic.name}</h3>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest group-hover:text-indigo-600 transition-colors">Start Drill</span>
+              </button>
+            ))}
           </div>
         </section>
 
