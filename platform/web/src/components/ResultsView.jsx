@@ -5,7 +5,7 @@ import { db } from '../firebase/config';
 import { collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from 'firebase/firestore';
 import ProblemDisplay from './ProblemDisplay';
 import SolutionSection from './SolutionSection';
-import { addXP, updateStreak, checkAchievements, XP_VALUES } from '../services/userService';
+import { addXP, updateStreak, checkAchievements, XP_VALUES, logMistake } from '../services/userService';
 
 
 const ResultsView = () => {
@@ -95,6 +95,15 @@ const ResultsView = () => {
         const totalXP = (correctCount * XP_VALUES.MOCK_TEST_CORRECT) + XP_VALUES.MOCK_TEST_COMPLETION;
         await addXP(currentUser.uid, totalXP, `mock_test_${year}_completion`);
         await checkAchievements(currentUser.uid);
+
+        // Log mistakes for spaced repetition
+        const incorrectProblems = results.filter(r => r.isAnswered && !r.isCorrect);
+        for (const r of incorrectProblems) {
+          await logMistake(currentUser.uid, {
+            ...r.problem,
+            year: year
+          });
+        }
 
         console.log("Results, streak and XP saved successfully");
       } catch (error) {

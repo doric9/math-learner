@@ -6,7 +6,7 @@ import { chatWithTutorStream } from '../services/tutor';
 import { Send, BookOpen, ArrowRight, ArrowLeft, Sparkles, CheckCircle, XCircle, PartyPopper, Star } from 'lucide-react';
 import ProblemDisplay from './ProblemDisplay';
 import confetti from 'canvas-confetti';
-import { addXP, updateStreak, checkAchievements, XP_VALUES } from '../services/userService';
+import { addXP, updateStreak, checkAchievements, XP_VALUES, logMistake } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
 
 const GuidedPracticeView = () => {
@@ -107,6 +107,9 @@ const GuidedPracticeView = () => {
                 content: "🎉 **Excellent work!** That's absolutely correct!\n\nYou chose **" + selectedAnswer + "**, which is the right answer. Would you like me to walk through the solution to reinforce your understanding, or are you ready to move to the next problem?"
             }]);
         } else {
+            if (currentUser && attemptedAnswers.length === 0) {
+                logMistake(currentUser.uid, { ...currentProblem, year });
+            }
             setAttemptedAnswers(prev => [...prev, selectedAnswer]);
             setSelectedAnswer(null); // Clear selection for retry
             setConversation(prev => [...prev, {

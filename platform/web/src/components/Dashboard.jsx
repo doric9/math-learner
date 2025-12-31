@@ -3,12 +3,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
 import { collection, query, where, getDocs, orderBy, limit, doc, getDoc } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
-import { Flame, Star, Zap, Award, Trophy, AlertTriangle, ArrowRight } from 'lucide-react';
+import { Flame, Star, Zap, Award, Trophy, AlertTriangle, ArrowRight, BookOpen, CheckCircle } from 'lucide-react';
 import { BADGE_DEFINITIONS } from '../utils/badgeDefinitions';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
 } from 'recharts';
+import { getDueMistakes, backfillMistakes, repairMistakeJournal } from '../services/userService';
 
 export default function Dashboard() {
     const { currentUser } = useAuth();
@@ -16,6 +17,8 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [topicStats, setTopicStats] = useState([]);
     const [userStats, setUserStats] = useState({ xp: 0, level: 1, streak: 0 });
+    const [dueMistakes, setDueMistakes] = useState([]);
+    const [isSyncing, setIsSyncing] = useState(false);
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -43,6 +46,7 @@ export default function Dashboard() {
 
                 // 2. Fetch topic mappings for each year (to ensure we use the backfilled AI topics)
                 for (const year of uniqueYears) {
+                    if (!year) continue;
                     const problemsRef = collection(db, 'competitions', 'amc8', 'exams', year.toString(), 'problems');
                     const problemsSnap = await getDocs(problemsRef);
                     topicMappings[year] = {};
@@ -138,6 +142,20 @@ export default function Dashboard() {
             }
         }
         fetchUserStats();
+    }, [currentUser]);
+
+    // Fetch Due Mistakes
+    useEffect(() => {
+        async function fetchDue() {
+            if (!currentUser) return;
+            try {
+                const mistakes = await getDueMistakes(currentUser.uid);
+                setDueMistakes(mistakes);
+            } catch (error) {
+                console.error("Error fetching due mistakes:", error);
+            }
+        }
+        fetchDue();
     }, [currentUser]);
 
     // Level calculation for progress bar
@@ -305,6 +323,80 @@ export default function Dashboard() {
                                 <Zap className="text-green-500 w-10 h-10 mb-2" />
                                 <p className="font-bold text-slate-900">Master Level Reached</p>
                                 <p className="text-sm text-slate-500">You're crushing it across all topics!</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Mistakes to Review */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                            <BookOpen className="text-indigo-500 w-5 h-5" />
+                            Mistakes to Review
+                        </h3>
+                        {dueMistakes.length > 0 ? (
+                            <div className="space-y-4">
+                                <p className="text-sm text-slate-500 mb-2">
+                                    You have {dueMistakes.length} problems due for review today.
+                                </p>
+                                <div className="space-y-3">
+                                    {dueMistakes.slice(0, 3).map(mistake => (
+                                        <div key={mistake.id} className="flex items-center justify-between p-3 bg-indigo-50 rounded-xl border border-indigo-100">
+                                            <div>
+                                                <h4 className="font-bold text-slate-900">{mistake.year} Problem {mistake.problemNumber}</h4>
+                                                <p className="text-xs text-indigo-600 font-medium">{mistake.topic}</p>
+                                            </div>
+                                            <button
+                                                onClick={() => navigate('/mistake-journal', { state: { problemId: mistake.id } })}
+                                                className="p-2 bg-white rounded-lg shadow-sm text-indigo-600 hover:text-indigo-800 transition-all active:scale-90"
+                                            >
+                                                <ArrowRight size={16} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => navigate('/mistake-journal')}
+                                    className="w-full mt-2 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-indigo-200"
+                                >
+                                    Open Mistake Journal
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
+                                <CheckCircle className="w-10 h-10 mb-2 text-green-500" />
+                                <p className="font-bold text-slate-900">All caught up!</p>
+                                <p className="text-sm">No mistakes due for review today.</p>
+                                <button
+                                    onClick={async () => {
+                                        setIsSyncing(true);
+                                        try {
+                                            const res = await backfillMistakes(currentUser.uid);
+                                            // Also run a repair just in case some metadata-only mistakes were left over
+                                            const repairRes = await repairMistakeJournal(currentUser.uid);
+
+                                            if (res.success || repairRes.success) {
+                                                const updated = await getDueMistakes(currentUser.uid);
+                                                setDueMistakes(updated);
+                                                const msg = (res.count > 0)
+                                                    ? `Successfully synced ${res.count} past mistakes and verified content!`
+                                                    : (repairRes.count > 0)
+                                                        ? `Verified and repaired ${repairRes.count} mistakes in your journal!`
+                                                        : "All mistakes are already synced and up to date.";
+                                                alert(msg);
+                                            } else {
+                                                alert(`Sync failed: ${res.error || repairRes.error}`);
+                                            }
+                                        } catch (error) {
+                                            console.error("Sync error:", error);
+                                            alert("An error occurred during synchronization.");
+                                        }
+                                        setIsSyncing(false);
+                                    }}
+                                    disabled={isSyncing}
+                                    className="mt-4 text-xs font-black text-indigo-600 uppercase tracking-widest hover:underline disabled:opacity-50"
+                                >
+                                    {isSyncing ? 'Syncing...' : 'Sync Past Mistakes'}
+                                </button>
                             </div>
                         )}
                     </div>

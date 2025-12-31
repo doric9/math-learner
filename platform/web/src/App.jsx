@@ -7,6 +7,7 @@ import GuidedPracticeView from './components/GuidedPracticeView';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import TopicDrillView from './components/TopicDrillView';
+import MistakeJournalView from './components/MistakeJournalView';
 import { AuthProvider } from './contexts/AuthContext';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
           <Route path="/test/:year" element={<TestView />} />
           <Route path="/results/:year" element={<ResultsView />} />
           <Route path="/guided/:year" element={<GuidedPracticeView />} />
+          <Route path="/mistake-journal" element={<MistakeJournalView />} />
         </Routes>
       </Router>
     </AuthProvider>

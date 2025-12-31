@@ -4,7 +4,7 @@ import { collection, collectionGroup, getDocs, query, where, limit } from 'fireb
 import { db } from '../firebase/config';
 import ProblemDisplay from './ProblemDisplay';
 import SolutionSection from './SolutionSection';
-import { addXP, updateStreak, checkAchievements, XP_VALUES } from '../services/userService';
+import { addXP, updateStreak, checkAchievements, XP_VALUES, logMistake } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
 import { Sparkles, ArrowLeft, Brain, Target, Award, ChevronRight } from 'lucide-react';
 
@@ -93,16 +93,19 @@ const TopicDrillView = () => {
     const handleAnswerSelect = (choice) => {
         if (selectedAnswer && choice !== selectedAnswer) return; // Prevent changing after selection in this mode
 
+        const isFirstAttempt = !answers[currentProblemIndex];
         setSelectedAnswer(choice);
         setAnswers({
             ...answers,
             [currentProblemIndex]: choice
         });
 
-        if (choice === currentProblem.correctAnswer && !answers[currentProblemIndex] && currentUser) {
+        if (choice === currentProblem.correctAnswer && isFirstAttempt && currentUser) {
             addXP(currentUser.uid, XP_VALUES.PRACTICE_CORRECT, `topic_drill_${topicName}_${currentProblem.examYear}_${currentProblem.problemNumber}`);
             checkAchievements(currentUser.uid);
             setSessionPoints(prev => prev + XP_VALUES.PRACTICE_CORRECT);
+        } else if (choice !== currentProblem.correctAnswer && isFirstAttempt && currentUser) {
+            logMistake(currentUser.uid, { ...currentProblem, year: currentProblem.examYear });
         }
     };
 

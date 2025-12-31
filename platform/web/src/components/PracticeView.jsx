@@ -4,7 +4,7 @@ import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import ProblemDisplay from './ProblemDisplay';
 import SolutionSection from './SolutionSection';
-import { addXP, updateStreak, checkAchievements, XP_VALUES } from '../services/userService';
+import { addXP, updateStreak, checkAchievements, XP_VALUES, logMistake } from '../services/userService';
 
 import { useAuth } from '../contexts/AuthContext';
 
@@ -60,16 +60,19 @@ const PracticeView = () => {
   const answerOptions = ['A', 'B', 'C', 'D', 'E'];
 
   const handleAnswerSelect = (choice) => {
+    const isFirstAttempt = !answers[currentProblemIndex];
     setSelectedAnswer(choice);
     setAnswers({
       ...answers,
       [currentProblemIndex]: choice
     });
 
-    if (choice === currentProblem.correctAnswer && !answers[currentProblemIndex] && currentUser) {
+    if (choice === currentProblem.correctAnswer && isFirstAttempt && currentUser) {
       addXP(currentUser.uid, XP_VALUES.PRACTICE_CORRECT, `practice_correct_${year}_${currentProblem.problemNumber}`);
       checkAchievements(currentUser.uid);
       setSessionPoints(prev => prev + XP_VALUES.PRACTICE_CORRECT);
+    } else if (choice !== currentProblem.correctAnswer && isFirstAttempt && currentUser) {
+      logMistake(currentUser.uid, { ...currentProblem, year });
     }
   };
 
