@@ -97,7 +97,7 @@ const ResultsView = () => {
         await checkAchievements(currentUser.uid);
 
         // Log mistakes for spaced repetition
-        const incorrectProblems = results.filter(r => r.isAnswered && !r.isCorrect);
+        const incorrectProblems = results.filter(r => !r.isCorrect);
         for (const r of incorrectProblems) {
           await logMistake(currentUser.uid, {
             ...r.problem,

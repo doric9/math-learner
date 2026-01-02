@@ -77,6 +77,11 @@ const PracticeView = () => {
   };
 
   const handleNext = () => {
+    // If moving from an unanswered problem, log it as a mistake
+    if (!answers[currentProblemIndex] && currentUser) {
+      logMistake(currentUser.uid, { ...currentProblem, year });
+    }
+
     if (currentProblemIndex < problems.length - 1) {
       setCurrentProblemIndex(currentProblemIndex + 1);
       setSelectedAnswer(answers[currentProblemIndex + 1] || null);

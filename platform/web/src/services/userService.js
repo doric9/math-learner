@@ -337,7 +337,7 @@ export const backfillMistakes = async (uid) => {
                 const userAns = answers[idxStr];
                 const correctAns = correctAnswers[idxStr] || correctAnswers[idx]; // Support both string and num keys
 
-                if (userAns && correctAns && userAns !== correctAns) {
+                if (correctAns && userAns !== correctAns) {
                     const problemNumber = idx + 1;
                     const problemId = `${year}_${problemNumber}`;
                     const topic = problemTopics[idxStr] || problemTopics[idx] || 'General';

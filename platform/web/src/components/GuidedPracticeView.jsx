@@ -174,6 +174,11 @@ const GuidedPracticeView = () => {
     };
 
     const handleNextProblem = () => {
+        // If moving from an unanswered problem, log it as a mistake
+        if (!answerSubmitted && currentUser) {
+            logMistake(currentUser.uid, { ...currentProblem, year });
+        }
+
         if (currentProblemIndex < problems.length - 1) {
             setCurrentProblemIndex(prev => prev + 1);
             setSelectedAnswer(null);
