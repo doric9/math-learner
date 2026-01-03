@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
+import { Flag } from 'lucide-react';
 import ProblemDisplay from './ProblemDisplay';
 
 const TestView = () => {
@@ -14,6 +15,7 @@ const TestView = () => {
   const [timeRemaining, setTimeRemaining] = useState(40 * 60); // 40 minutes in seconds
   const [testStarted, setTestStarted] = useState(false);
   const [testSubmitted, setTestSubmitted] = useState(false);
+  const [markedProblems, setMarkedProblems] = useState({});
 
   useEffect(() => {
     const fetchProblems = async () => {
@@ -87,6 +89,24 @@ const TestView = () => {
       [currentProblemIndex]: choice
     });
   };
+
+  const toggleMark = useCallback(() => {
+    setMarkedProblems(prev => ({
+      ...prev,
+      [currentProblemIndex]: !prev[currentProblemIndex]
+    }));
+  }, [currentProblemIndex]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key.toLowerCase() === 'm') {
+        toggleMark();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleMark]);
 
   if (!loading && problems.length === 0) {
     return (
@@ -175,7 +195,7 @@ const TestView = () => {
               <button
                 key={index}
                 onClick={() => setCurrentProblemIndex(index)}
-                className={`w-10 h-10 rounded-md font-medium transition-colors duration-200 ${currentProblemIndex === index
+                className={`w-10 h-10 rounded-md font-medium transition-colors duration-200 relative ${currentProblemIndex === index
                   ? 'bg-blue-600 text-white'
                   : answers[index]
                     ? 'bg-green-100 text-green-800 border-2 border-green-500'
@@ -183,6 +203,9 @@ const TestView = () => {
                   }`}
               >
                 {index + 1}
+                {markedProblems[index] && (
+                  <div className="absolute top-1 right-1 w-2 h-2 bg-amber-400 rounded-full shadow-sm" />
+                )}
               </button>
             ))}
           </div>
@@ -190,6 +213,12 @@ const TestView = () => {
             <div className="flex items-center gap-2 mb-2">
               <div className="w-4 h-4 bg-green-100 border-2 border-green-500 rounded"></div>
               <span>Answered</span>
+            </div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-4 h-4 bg-gray-100 rounded relative">
+                <div className="absolute top-1 right-1 w-1.5 h-1.5 bg-amber-400 rounded-full"></div>
+              </div>
+              <span>Marked for Review</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-4 bg-gray-100 rounded"></div>
@@ -202,9 +231,22 @@ const TestView = () => {
         <div className="flex-1 p-8">
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-lg shadow-md p-8">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                Problem {currentProblem.problemNumber}
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  Problem {currentProblem.problemNumber}
+                </h2>
+                <button
+                  onClick={toggleMark}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 transition-all duration-200 ${markedProblems[currentProblemIndex]
+                    ? 'bg-amber-50 border-amber-500 text-amber-600'
+                    : 'bg-white border-gray-100 text-gray-400 hover:border-gray-200 hover:bg-gray-50'
+                    }`}
+                  title="Mark for review (Shortcut: M)"
+                >
+                  <Flag className={`w-4 h-4 ${markedProblems[currentProblemIndex] ? 'fill-amber-500' : ''}`} />
+                  <span className="text-sm font-medium">Review</span>
+                </button>
+              </div>
 
               <ProblemDisplay
                 content={currentProblem.problemHtml || currentProblem.problemText}
