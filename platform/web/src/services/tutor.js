@@ -1,112 +1,52 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
-
-let genAI = null;
-let model = null;
-
-if (API_KEY) {
-  genAI = new GoogleGenerativeAI(API_KEY);
-  model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview" });
-}
-
-// Build the system prompt for the tutor
-const buildSystemPrompt = (problem, conversationHistory, userMessage) => {
-  const conversationContext = conversationHistory
-    .map(msg => `${msg.role === 'student' ? 'Student' : 'Tutor'}: ${msg.content}`)
-    .join('\n\n');
-
-  return `You are an expert math tutor helping a student solve an AMC 8 math problem through Socratic dialogue.
-
-Problem:
-${problem.problemText || problem.problemHtml}
-
-${problem.choices ? `Answer choices:\n${Object.entries(problem.choices).map(([key, val]) => `${key}. ${val}`).join('\n')}` : ''}
-
-Correct Answer: ${problem.correctAnswer}
-
-TUTORING GUIDELINES:
-- Guide the student with questions and hints, don't give direct answers
-- If the student is stuck, ask guiding questions like "What do you notice about...?" or "What happens if...?"
-- Break down complex problems into smaller steps
-- Encourage mathematical thinking and reasoning
-- If the student asks for a hint, provide a progressive hint based on where they are
-- If they're on the right track, encourage them and ask what to do next
-- If they make an error, gently guide them to discover it themselves
-- Only reveal the full solution if explicitly asked "show me the solution" or after multiple struggles
-- Be encouraging, patient, and supportive
-- Keep responses concise and focused
-- Use LaTeX notation for math expressions (wrap in $ for inline, $$ for block)
-
-Previous conversation:
-${conversationContext}
-
-Student's new message: ${userMessage}
-
-Respond as the tutor:`;
-};
+import { functions } from '../firebase/config';
+import { httpsCallable } from 'firebase/functions';
 
 // Conversational tutor - responds to student questions
 export const chatWithTutor = async (problem, conversationHistory, userMessage) => {
-  if (!model) throw new Error("Gemini API not initialized");
+  const chatWithTutorFn = httpsCallable(functions, 'chatWithTutor');
 
-  const systemPrompt = buildSystemPrompt(problem, conversationHistory, userMessage);
-  const result = await model.generateContent(systemPrompt);
-  return result.response.text();
+  try {
+    const result = await chatWithTutorFn({
+      problem,
+      conversationHistory,
+      userMessage
+    });
+    return result.data.text;
+  } catch (error) {
+    console.error("Error in tutor chat function:", error);
+    throw error;
+  }
 };
 
-// Streaming version for real-time display
+// Streaming version - Callables don't natively support streaming.
+// Temporarily fallback to non-streaming or we could use another approach.
+// For now, let's keep the API signature but return the whole thing at once.
 export const chatWithTutorStream = async function* (problem, conversationHistory, userMessage) {
-  if (!model) throw new Error("Gemini API not initialized");
-
-  const systemPrompt = buildSystemPrompt(problem, conversationHistory, userMessage);
-  const result = await model.generateContentStream(systemPrompt);
-
-  for await (const chunk of result.stream) {
-    const chunkText = chunk.text();
-    if (chunkText) {
-      yield chunkText;
-    }
-  }
+  const text = await chatWithTutor(problem, conversationHistory, userMessage);
+  yield text;
 };
 
 // Generate a hint for the current problem state
 export const getHint = async (problem, previousHints = []) => {
-  if (!model) throw new Error("Gemini API not initialized");
+  const getHintFn = httpsCallable(functions, 'getHint');
 
-  const prompt = `
-    You are an expert math tutor helping a student solve an AMC 8 math problem.
-
-    Problem:
-    ${problem.problemText || problem.problemHtml}
-
-    The student is stuck. They have received the following hints so far:
-    ${previousHints.map((h, i) => `${i + 1}. ${h}`).join('\n')}
-
-    Please provide a small, progressive hint to help them move forward.
-    Do NOT give the answer.
-    Do NOT solve the whole problem.
-    Just give the next logical step or a guiding question.
-    Keep it short and encouraging.
-  `;
-
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  try {
+    const result = await getHintFn({ problem, previousHints });
+    return result.data.hint;
+  } catch (error) {
+    console.error("Error getting hint function:", error);
+    throw error;
+  }
 };
 
 export const explainSolution = async (problem) => {
-  if (!model) throw new Error("Gemini API not initialized");
+  const explainSolutionFn = httpsCallable(functions, 'explainSolution');
 
-  const prompt = `
-    You are an expert math tutor.
-
-    Problem:
-    ${problem.problemText || problem.problemHtml}
-
-    Please provide a clear, step-by-step explanation of the solution.
-    Explain the concepts used.
-  `;
-
-  const result = await model.generateContent(prompt);
-  return result.response.text();
+  try {
+    const result = await explainSolutionFn({ problem });
+    return result.data.explanation;
+  } catch (error) {
+    console.error("Error explaining solution function:", error);
+    throw error;
+  }
 };

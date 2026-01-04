@@ -9,23 +9,26 @@ import Dashboard from './components/Dashboard';
 import TopicDrillView from './components/TopicDrillView';
 import MistakeJournalView from './components/MistakeJournalView';
 import { AuthProvider } from './contexts/AuthContext';
+import { AIAccessProvider } from './contexts/AIAccessContext';
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<ExamSelection />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/practice/:year" element={<PracticeView />} />
-          <Route path="/practice/topic/:topicName" element={<TopicDrillView />} />
-          <Route path="/test/:year" element={<TestView />} />
-          <Route path="/results/:year" element={<ResultsView />} />
-          <Route path="/guided/:year" element={<GuidedPracticeView />} />
-          <Route path="/mistake-journal" element={<MistakeJournalView />} />
-        </Routes>
-      </Router>
+      <AIAccessProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<ExamSelection />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/practice/:year" element={<PracticeView />} />
+            <Route path="/practice/topic/:topicName" element={<TopicDrillView />} />
+            <Route path="/test/:year" element={<TestView />} />
+            <Route path="/results/:year" element={<ResultsView />} />
+            <Route path="/guided/:year" element={<GuidedPracticeView />} />
+            <Route path="/mistake-journal" element={<MistakeJournalView />} />
+          </Routes>
+        </Router>
+      </AIAccessProvider>
     </AuthProvider>
   );
 }

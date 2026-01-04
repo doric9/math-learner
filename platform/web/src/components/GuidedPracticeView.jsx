@@ -8,6 +8,8 @@ import ProblemDisplay from './ProblemDisplay';
 import confetti from 'canvas-confetti';
 import { addXP, updateStreak, checkAchievements, XP_VALUES, logMistake } from '../services/userService';
 import { useAuth } from '../contexts/AuthContext';
+import { useAIAccess } from '../contexts/AIAccessContext';
+import { Lock } from 'lucide-react';
 
 const GuidedPracticeView = () => {
     const { year } = useParams();
@@ -17,6 +19,7 @@ const GuidedPracticeView = () => {
     const [loading, setLoading] = useState(true);
     const [sessionPoints, setSessionPoints] = useState(0);
     const { currentUser } = useAuth();
+    const { hasAIAccess, isCheckingAccess } = useAIAccess();
 
     // Conversational Chat State
     const [conversation, setConversation] = useState([]);
@@ -370,98 +373,140 @@ const GuidedPracticeView = () => {
                     </div>
                 </div>
 
-                {/* Chat Messages */}
-                <div className="flex-1 overflow-y-auto p-5 space-y-5">
-                    {conversation.map((message, index) => (
-                        <div
-                            key={index}
-                            className={`flex ${message.role === 'student' ? 'justify-end' : 'justify-start'}`}
-                        >
-                            <div
-                                className={`max-w-[90%] rounded-2xl ${message.role === 'student'
-                                    ? 'bg-indigo-600 text-white px-5 py-3'
-                                    : 'bg-slate-50 border border-slate-200 text-slate-700 px-5 py-4'
-                                    }`}
-                            >
-                                <ProblemDisplay
-                                    content={message.content}
-                                    size="text-[15px]"
-                                    className={`leading-[1.7] ${message.role === 'student' ? 'text-white [&_strong]:text-white [&_em]:text-white/90' : 'text-slate-700 [&_strong]:text-slate-900'}`}
-                                />
-                            </div>
+                {/* Gated Content: Check for login and AI access */}
+                {!currentUser ? (
+                    /* Not logged in - Show login CTA */
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+                            <Lock className="text-slate-400" size={32} />
                         </div>
-                    ))}
-
-                    {/* Streaming Response */}
-                    {isTyping && streamingText && (
-                        <div className="flex justify-start">
-                            <div className="max-w-[90%] bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4">
-                                <ProblemDisplay
-                                    content={streamingText}
-                                    size="text-[15px]"
-                                    className="leading-[1.7] text-slate-700 [&_strong]:text-slate-900"
-                                />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Typing Indicator */}
-                    {isTyping && !streamingText && (
-                        <div className="flex justify-start">
-                            <div className="bg-slate-100 rounded-2xl px-4 py-3">
-                                <div className="flex space-x-2">
-                                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
-                                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                                    <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    <div ref={chatEndRef} />
-                </div>
-
-                {/* Quick Actions */}
-                <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
-                    <div className="flex flex-wrap gap-2">
-                        {quickActions.map((action, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => {
-                                    setUserInput(action.text);
-                                    inputRef.current?.focus();
-                                }}
-                                className="text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-all font-bold text-slate-600"
-                            >
-                                <span className="mr-1">{action.icon}</span>
-                                {action.text}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Input */}
-                <div className="p-4 border-t border-slate-100 bg-white">
-                    <div className="flex gap-2">
-                        <input
-                            ref={inputRef}
-                            type="text"
-                            value={userInput}
-                            onChange={(e) => setUserInput(e.target.value)}
-                            onKeyPress={handleKeyPress}
-                            placeholder="Ask a question or share your thinking..."
-                            disabled={isTyping}
-                            className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 disabled:bg-slate-50 disabled:cursor-not-allowed font-medium"
-                        />
+                        <h3 className="text-xl font-black text-slate-900 mb-2">Login to Unlock AI Tutor</h3>
+                        <p className="text-slate-500 font-medium mb-6 max-w-xs">
+                            Get personalized hints, explanations, and step-by-step guidance from our AI tutor.
+                        </p>
                         <button
-                            onClick={handleSendMessage}
-                            disabled={!userInput.trim() || isTyping}
-                            className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-100"
+                            onClick={() => navigate('/login')}
+                            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
                         >
-                            <Send size={20} />
+                            Sign In to Continue
                         </button>
                     </div>
-                </div>
+                ) : !hasAIAccess && !isCheckingAccess ? (
+                    /* Logged in but not on allowlist - Show coming soon */
+                    <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                        <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mb-6">
+                            <Sparkles className="text-amber-500" size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-900 mb-2">AI Tutor Coming Soon</h3>
+                        <p className="text-slate-500 font-medium mb-4 max-w-xs">
+                            AI-powered tutoring is being rolled out gradually. You'll get access soon!
+                        </p>
+                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">
+                            Check back later
+                        </p>
+                    </div>
+                ) : isCheckingAccess ? (
+                    /* Loading access status */
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                ) : (
+                    /* Has access - Show full AI tutor */
+                    <>
+                        {/* Chat Messages */}
+                        <div className="flex-1 overflow-y-auto p-5 space-y-5">
+                            {conversation.map((message, index) => (
+                                <div
+                                    key={index}
+                                    className={`flex ${message.role === 'student' ? 'justify-end' : 'justify-start'}`}
+                                >
+                                    <div
+                                        className={`max-w-[90%] rounded-2xl ${message.role === 'student'
+                                            ? 'bg-indigo-600 text-white px-5 py-3'
+                                            : 'bg-slate-50 border border-slate-200 text-slate-700 px-5 py-4'
+                                            }`}
+                                    >
+                                        <ProblemDisplay
+                                            content={message.content}
+                                            size="text-[15px]"
+                                            className={`leading-[1.7] ${message.role === 'student' ? 'text-white [&_strong]:text-white [&_em]:text-white/90' : 'text-slate-700 [&_strong]:text-slate-900'}`}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+
+                            {/* Streaming Response */}
+                            {isTyping && streamingText && (
+                                <div className="flex justify-start">
+                                    <div className="max-w-[90%] bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4">
+                                        <ProblemDisplay
+                                            content={streamingText}
+                                            size="text-[15px]"
+                                            className="leading-[1.7] text-slate-700 [&_strong]:text-slate-900"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Typing Indicator */}
+                            {isTyping && !streamingText && (
+                                <div className="flex justify-start">
+                                    <div className="bg-slate-100 rounded-2xl px-4 py-3">
+                                        <div className="flex space-x-2">
+                                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></div>
+                                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                                            <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div ref={chatEndRef} />
+                        </div>
+
+                        {/* Quick Actions */}
+                        <div className="px-4 py-3 border-t border-slate-100 bg-slate-50">
+                            <div className="flex flex-wrap gap-2">
+                                {quickActions.map((action, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => {
+                                            setUserInput(action.text);
+                                            inputRef.current?.focus();
+                                        }}
+                                        className="text-xs px-3 py-2 bg-white border border-slate-200 rounded-xl hover:border-indigo-300 hover:bg-indigo-50 transition-all font-bold text-slate-600"
+                                    >
+                                        <span className="mr-1">{action.icon}</span>
+                                        {action.text}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Input */}
+                        <div className="p-4 border-t border-slate-100 bg-white">
+                            <div className="flex gap-2">
+                                <input
+                                    ref={inputRef}
+                                    type="text"
+                                    value={userInput}
+                                    onChange={(e) => setUserInput(e.target.value)}
+                                    onKeyPress={handleKeyPress}
+                                    placeholder="Ask a question or share your thinking..."
+                                    disabled={isTyping}
+                                    className="flex-1 px-4 py-3 border-2 border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 disabled:bg-slate-50 disabled:cursor-not-allowed font-medium"
+                                />
+                                <button
+                                    onClick={handleSendMessage}
+                                    disabled={!userInput.trim() || isTyping}
+                                    className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-100"
+                                >
+                                    <Send size={20} />
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </div >
     );

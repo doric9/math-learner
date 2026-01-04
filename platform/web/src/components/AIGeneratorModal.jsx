@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateSimilarProblem } from '../services/gemini';
 
 const AIGeneratorModal = ({ problem, onClose }) => {
   const [generating, setGenerating] = useState(false);
@@ -11,63 +11,8 @@ const AIGeneratorModal = ({ problem, onClose }) => {
     setError(null);
 
     try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-
-      if (!apiKey) {
-        throw new Error('Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your .env file.');
-      }
-
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.0-flash' });
-
-      const prompt = `You are a math problem generator. Based on the following AMC 8 problem, create a NEW, UNIQUE problem that tests the same mathematical concept.
-
-Original Problem:
-Original Problem:
-${problem.problemHtml}
-
-Topic: ${problem.topic || 'General'}
-
-Original Solution (for context):
-Original Solution (for context):
-${problem.solutionHtml}
-
-Please generate a completely new problem with:
-1. A different scenario/context
-2. Different numbers
-3. The same mathematical concept
-4. 5 multiple choice options (A-E)
-5. The correct answer
-6. A detailed solution
-
-Respond ONLY with valid JSON in this exact format:
-{
-  "problemText": "...",
-  "choices": {
-    "A": "...",
-    "B": "...",
-    "C": "...",
-    "D": "...",
-    "E": "..."
-  },
-  "correctAnswer": "A",
-  "solutionText": "..."
-}`;
-
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-
-      // Extract JSON from response (handle markdown code blocks)
-      let jsonText = text.trim();
-      if (jsonText.startsWith('```json')) {
-        jsonText = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '');
-      } else if (jsonText.startsWith('```')) {
-        jsonText = jsonText.replace(/```\n?/g, '');
-      }
-
-      const parsed = JSON.parse(jsonText);
-      setGeneratedProblem(parsed);
+      setError("The AI Problem Generator is currently being refactored for a more sophisticated batch-mode workflow and is temporarily disabled. Please check back soon!");
+      // Future implementation will use a generator-validator architecture in batch mode.
     } catch (err) {
       console.error('Error generating problem:', err);
       setError(err.message || 'Failed to generate problem. Please try again.');
