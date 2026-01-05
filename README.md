@@ -1,218 +1,117 @@
 # AMC 8 Guided Learning Platform
 
-A complete full-stack application for practicing AMC 8 (American Mathematics Competition 8) problems, featuring web scraping, data ingestion, practice modes, timed mock exams, and AI-powered problem generation.
+A comprehensive full-stack application for practicing AMC 8 (American Mathematics Competition 8) problems, featuring automated data pipelines, an AI-powered tutoring system, gamification elements, and personalized learning tools.
 
 ## Project Overview
 
-This project consists of two main components:
+The project is organized into two primary components:
 
-1. **Data Pipeline** (`/scraper`): Web scraper and Firestore ingestion tools
-2. **Learning App** (`/app`): React-based web application for students
+1.  **Data Pipeline** (`/scraper`): Tools for harvesting problems from the AoPS Wiki and ingesting them into Firestore.
+2.  **Learning Platform** (`/platform`): A robust Firebase-powered ecosystem:
+    *   **Web App** (`/platform/web`): A React dashboard for students.
+    *   **Cloud Functions** (`/platform/functions`): Backend proxy for secure Gemini AI integration and access control.
 
-## Quick Start
+## Key Features
 
-### 1. Set Up Data Pipeline
+### 🎓 Learning Experience
+*   **Timed Mock Exams**: Full 25-question, 40-minute simulated testing environment with a problem navigation sidebar and "Mark for Review" functionality.
+*   **Practice Mode**: Topic-specific or year-specific practice with immediate feedback and detailed solutions.
+*   **Mistake Journal**: An automated system that tracks incorrect answers and uses spaced repetition to help students master challenging concepts.
 
-```bash
-cd scraper
-npm install
-npm run demo            # Use pre-made demo dataset (recommended)
-npm run ingest          # Upload data to Firestore (requires service account key)
-```
+### 🤖 AI Tutor & Assistant
+*   **Socratic Tutoring**: A Gemini-powered AI tutor that provides hints and guides students through problems without giving away the answer.
+*   **Solution Explainer**: Detailed, step-by-step explanations of complex math problems generated on-demand.
+*   **Access Control**: A robust allowlist system (managed via Firestore) to ensure secure and controlled access to AI features.
 
-The demo dataset includes **24 complete problems** across 3 exam years (2022-2024) with:
-- ✅ Complete problem text
-- ✅ All answer choices
-- ✅ Correct answers
-- ✅ Full solutions
-
-See [scraper/README.md](scraper/README.md) for detailed instructions and web scraping options.
-
-### 2. Set Up Learning App
-
-```bash
-cd app
-npm install
-cp .env.example .env    # Configure Firebase & Gemini API keys
-npm run dev             # Start development server
-```
-
-See [app/README.md](app/README.md) for detailed instructions.
-
-## Features
-
-### Data Pipeline
-- Automated web scraping of AMC 8 problems from Art of Problem Solving wiki
-- Extracts problem text, multiple choice options, solutions, and correct answers
-- Structured JSON output
-- Firebase Firestore ingestion with organized hierarchical structure
-
-### Learning Application
-- **Exam Selection**: Browse all available AMC 8 exams by year
-- **Practice Mode**:
-  - Study problems at your own pace
-  - Immediate answer feedback (correct/incorrect)
-  - Detailed solutions
-  - AI-powered similar problem generation using Gemini
-- **Mock Exam Mode**:
-  - 40-minute timed test
-  - Side panel navigation with visual progress tracking
-  - Auto-submit when time expires
-- **Results View**:
-  - Comprehensive score breakdown
-  - Question-by-question analysis
-  - Complete solutions for review
+### 🎮 Gamification & Engagement
+*   **XP & Leveling System**: Earn experience points for daily logins, practicing problems, and completing mock tests.
+*   **Streaks & Badges**: Unlock achievements for consistent practice and performance milestones.
+*   **Progress Dashboard**: Visual tracking of learning activity, performance trends, and earned badges.
 
 ## Technology Stack
 
-### Backend/Data
-- Node.js
-- Playwright (web scraping)
-- Firebase Admin SDK (data ingestion)
-- Firebase Firestore (database)
+### Backend & Infrastructure
+*   **Firebase / Google Cloud**: Firestore (Database), Authentication, Cloud Functions (Node.js), and Hosting.
+*   **Google Gemini API**: Advanced LLM for Socratic tutoring and solution generation.
+*   **Playwright**: Industrial-strength web scraping for data collection.
 
 ### Frontend
-- React 18
-- Vite
-- Tailwind CSS
-- React Router v6
-- Firebase (Firestore + Auth)
-- Google Gemini API (AI problem generation)
+*   **React 18**: Modern UI development with Vite.
+*   **Tailwind CSS**: Utility-first styling for a responsive, premium design.
+*   **React Router v6**: Dynamic client-side routing.
+*   **Math Rendering**: Support for LaTeX-style math formulas.
 
 ## Project Structure
 
-```
-amc8-guided-learning/
-├── scraper/                    # Data pipeline
-│   ├── scraper.js             # Web scraping script
-│   ├── ingest-to-firestore.js # Firestore upload script
-│   ├── package.json
-│   └── README.md
-├── app/                       # React learning application
-│   ├── src/
-│   │   ├── components/       # React components
-│   │   ├── firebase/         # Firebase config
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── firestore.rules       # Security rules
-│   ├── package.json
-│   └── README.md
-├── project_plan.md           # Original project specification
-└── README.md                 # This file
-```
-
-## Setup Instructions
-
-### Prerequisites
-- Node.js 18+ installed
-- Firebase project created
-- Gemini API key (for AI features)
-
-### Step 1: Clone and Install
-
 ```bash
-git clone <repository-url>
-cd amc8-guided-learning
+amc8-guided-learning/
+├── scraper/                  # Data pipeline tools
+│   ├── scraper.js           # AoPS Wiki problem scraper
+│   ├── ingest-to-firestore.js # Data upload utility
+│   └── amc8_data.json       # Local data storage (intermediary)
+├── platform/                 # Core application services
+│   ├── web/                 # React frontend (Vite project)
+│   │   ├── src/components/  # UI components (Dashboard, Tutor, etc.)
+│   │   ├── src/services/    # API and internal services
+│   │   └── .env.example     # Configuration template
+│   ├── functions/           # Firebase Cloud Functions (AI Proxy)
+│   │   └── index.js         # Gemini integration & access control
+│   ├── firestore.rules      # Database security configuration
+│   └── firebase.json        # Firebase deployment config
+└── project_plan.md           # Original roadmap and specifications
 ```
 
-### Step 2: Scrape Data
+## Quick Start
 
+### 1. Scrape and Ingest Data
 ```bash
 cd scraper
 npm install
-npm run scrape
+npm run scrape  # Collects problems from AoPS Wiki
+# Copy your serviceAccountKey.json to the scraper directory
+npm run ingest  # Uploads data to Firestore
 ```
 
-This creates `amc8_data.json` with all AMC 8 problems.
-
-### Step 3: Set Up Firebase
-
-1. Create a Firebase project at https://console.firebase.google.com
-2. Enable Firestore Database
-3. Enable Anonymous Authentication
-4. Download service account key and save as `scraper/serviceAccountKey.json`
-
-### Step 4: Ingest Data to Firestore
-
+### 2. Deploy Backend Services
 ```bash
-cd scraper
-npm run ingest
+cd platform
+# Install functions dependencies
+cd functions && npm install && cd ..
+# Deploy functions, rules, and indexes
+firebase deploy --only functions,firestore
 ```
 
-### Step 5: Configure App
-
+### 3. Start the Web App
 ```bash
-cd app
-cp .env.example .env
-# Edit .env with your Firebase and Gemini API credentials
-```
-
-### Step 6: Deploy Security Rules
-
-```bash
-cd app
-firebase deploy --only firestore:rules
-```
-
-### Step 7: Run the App
-
-```bash
-cd app
+cd platform/web
+npm install
+cp .env.example .env # Configure your Firebase and Gemini keys
 npm run dev
 ```
 
-Visit `http://localhost:5173` to use the application.
+## Database Schema Highlights
 
-## Data Flow
+### `competitions/amc8/exams/{year}/problems/{number}`
+*   `problemHtml/problemText`: The core problem content.
+*   `correctAnswer`: Correct letter option (A-E).
+*   `solutionHtml`: Step-by-step solution.
+*   `topic`: Mathematical category (e.g., Geometry, Algebra).
 
-```
-AoPS Wiki → Scraper → amc8_data.json → Ingestion Script → Firestore → React App
-```
+### `users/{uid}`
+*   `xp`: Cumulative experience points.
+*   `level`: Current user level.
+*   `streak`: Object tracking `current` streak and `lastActivityDate`.
+*   `badges`: Array of earned achievement IDs.
 
-## Firestore Schema
+### `users/{uid}/mistakeJournal/{problemId}`
+*   `missedCount`: Number of times the problem was missed.
+*   `nextReviewDate`: Date for next spaced repetition review.
+*   `status`: Current learning state (`learning`, `mastered`).
 
-```
-artifacts/{appId}/public/data/
-  competitions/
-    amc8/
-      name: "American Mathematics Competition 8"
-      id: "amc8"
-      totalExams: number
-      exams/ (subcollection)
-        {year}/ (e.g., "2022")
-          year: 2022
-          totalProblems: 25
-          problems/ (subcollection)
-            {problemNumber}/ (e.g., "1")
-              problemNumber: 1
-              problemText: "..."
-              choices: { A: "...", B: "...", ... }
-              correctAnswer: "A"
-              solutionText: "..."
-              topic: "Arithmetic"
-```
+## Security & Ethics
+*   **Secret Management**: Gemini API keys are handled as Firebase Secrets to prevent client-side exposure.
+*   **Access Control**: AI features are restricted via a server-side allowlist (`config/aiAccess`).
+*   **Data Integrity**: Firestore rules ensure that mission-critical data remains immutable from the client.
 
-## Security
-
-- Firestore rules allow public read access to competition data
-- Write access restricted to Firebase Admin SDK only
-- Anonymous authentication used for user sessions
-- No sensitive data stored in client
-
-## Future Enhancements
-
-- User progress tracking and analytics
-- Performance-based study recommendations
-- Additional competitions (AMC 10, AMC 12, AIME)
-- Spaced repetition for weak topics
-- Collaborative features (discussion forums)
-- Mobile app version
-
-## License
-
-This project is for educational purposes.
-
-## Acknowledgments
-
-- Problems sourced from [Art of Problem Solving](https://artofproblemsolving.com)
-- AMC 8 is a program of the Mathematical Association of America
+---
+*Created for educational purposes. Problem data sourced from the [Art of Problem Solving Wiki](https://artofproblemsolving.com/wiki/index.php/AMC_8_Problems_and_Solutions).*
