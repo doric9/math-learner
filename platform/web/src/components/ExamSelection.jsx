@@ -510,7 +510,7 @@ const ExamSelection = () => {
           </span>
         </div>
         <p className="text-sm font-bold text-slate-400 uppercase tracking-[0.2em]">
-          &copy; 2025 AMC 8 Guided. Built for Excellence.
+          &copy; 2025–26 AMC 8 Guided. Built for Excellence.
         </p>
       </footer>
     </div>
